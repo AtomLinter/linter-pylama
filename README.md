@@ -4,7 +4,7 @@ This package will lint your opened Python-files in Atom, using [pylama](https://
 
 ## Installation
 
-* Install [pylama](https://pypi.python.org/pypi/pylama#instalation).
+* Install [pylama](https://github.com/klen/pylama#instalation).
 * `$ apm install linter` (if you don't have [AtomLinter/Linter](https://github.com/AtomLinter/Linter) installed).
 * `$ apm install linter-pylama`
 
