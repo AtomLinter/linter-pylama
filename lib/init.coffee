@@ -1,5 +1,6 @@
 module.exports =
   configDefaults:
+    'Executable path': null
     'Ignore errors and warnings (comma-separated)': null
 
   activate: ->

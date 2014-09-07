@@ -1,6 +1,8 @@
-{exec} = require 'child_process'
 linterPath = atom.packages.getLoadedPackage("linter").path
 Linter = require "#{linterPath}/lib/linter"
+
+{config} = atom
+{exec} = require 'child_process'
 {log, warn} = require "#{linterPath}/lib/utils"
 
 
@@ -12,14 +14,15 @@ class LinterPylama extends Linter
   linterName: 'pylama'
   regex: ':(?<line>\\d+):(?<col>\\d+): (?<message>.*?)\n'
 
-
   constructor: (@editor) ->
-    super @editor  # sets @cwd to the dirname of the current file
-    exec 'pylama --version', @executionCheckHandler
-    log 'Linter-Pylama: initialization completed'
-    ignoreErrors = atom.config.getSettings()['linter-pylama']['Ignore errors and warnings (comma-separated)']
+    super @editor
+    @executablePath = config.getSettings()['linter-pylama']['Executable path']
+    @cmd = if @executablePath then @executablePath else @cmd
+    exec "#{@cmd} --version", @executionCheckHandler
+    ignoreErrors = config.getSettings()['linter-pylama']['Ignore errors and warnings (comma-separated)']
     if ignoreErrors and ignoreErrors.length > 0
       @cmd = "#{@cmd} --ignore #{ignoreErrors}"
+    log 'Linter-Pylama: initialization completed'
 
   executionCheckHandler: (error, stdout, stderr) =>
     versionRegEx = /pylama ([\d\.]+)/
@@ -27,10 +30,10 @@ class LinterPylama extends Linter
       result = if error? then '#' + error.code + ': ' else ''
       result += 'stdout: ' + stdout if stdout.length > 0
       result += 'stderr: ' + stderr if stderr.length > 0
-      console.error "Linter-Pylama: #{cmd} was not executable: #{result}"
+      console.error "Linter-Pylama: #{@cmd} was not executable: #{result}"
     else
-      log "Linter-Pylama: found pylama " + versionRegEx.exec(stderr)[1]
       @enabled = true
+      log "Linter-Pylama: found pylama " + versionRegEx.exec(stderr)[1]
 
   lintFile: (filePath, callback) =>
     if @enabled
