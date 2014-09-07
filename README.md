@@ -11,11 +11,5 @@ This package will lint your opened Python-files in Atom, using [pylama](https://
 ## Other available linters
 There are other linters available - take a look at the linters [mainpage](https://github.com/AtomLinter/Linter).
 
-## Changelog
-
-### 0.0.1
-
- - Implemented first version of 'linter-pylama'
-
 ## Donation
 [![Share the love!](https://chewbacco-stuff.s3.amazonaws.com/donate.png)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=KXUYS4ARNHCN8)
