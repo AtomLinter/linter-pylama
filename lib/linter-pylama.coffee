@@ -21,7 +21,10 @@ class LinterPylama extends Linter
     exec "#{@cmd} --version", @executionCheckHandler
     ignoreErrors = config.getSettings()['linter-pylama']['Ignore errors and warnings (comma-separated)']
     if ignoreErrors and ignoreErrors.length > 0
-      @cmd = "#{@cmd} --ignore #{ignoreErrors}"
+      @cmd = "#{@cmd} -i #{ignoreErrors}"
+    selectLinters = config.getSettings()['linter-pylama']['Select linters (comma-separated)']
+    if selectLinters and selectLinters.length > 0
+      @cmd = "#{@cmd} -l #{selectLinters}"
     log 'Linter-Pylama: initialization completed'
 
   executionCheckHandler: (error, stdout, stderr) =>
