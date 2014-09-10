@@ -1,3 +1,8 @@
+# 0.0.4
+* Improved detection of warnings
+* Fix detection pep257 warnings
+* Added 'async' mode
+
 # 0.0.3
 * Separation of messages to errors or warnings
 * Added selection of linters
