@@ -12,7 +12,7 @@ class LinterPylama extends Linter
   cmd: 'pylama'
   executablePath: null
   linterName: 'pylama'
-  regex: ':(?<line>\\d+):(?<col>\\d+):\\s+((?<error>E)|(?<warning>C|D|F|N|W))(?<code>\\d+)\\s+(?<message>.+)\r?\n'
+  regex: ':(?<line>\\d+):(?<col>\\d+):\\s+((?<error>E)|(?<warning>[CDFNW]))(?<code>\\d+)(:\\s+|\\s+)(?<message>.+)\n'
 
   constructor: (@editor) ->
     super @editor
