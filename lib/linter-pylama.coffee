@@ -16,15 +16,19 @@ class LinterPylama extends Linter
 
   constructor: (@editor) ->
     super @editor
-    @executablePath = config.getSettings()['linter-pylama']['Executable path']
+    cfg = config.getSettings()['linter-pylama']
+    @executablePath = cfg['Executable path']
     @cmd = if @executablePath then @executablePath else @cmd
     exec "#{@cmd} --version", @executionCheckHandler
-    ignoreErrors = config.getSettings()['linter-pylama']['Ignore errors and warnings (comma-separated)']
+    ignoreErrors = cfg['Ignore errors and warnings (comma-separated)']
     if ignoreErrors and ignoreErrors.length > 0
       @cmd = "#{@cmd} -i #{ignoreErrors}"
-    selectLinters = config.getSettings()['linter-pylama']['Select linters (comma-separated)']
+    selectLinters = cfg['Select linters (comma-separated)']
     if selectLinters and selectLinters.length > 0
       @cmd = "#{@cmd} -l #{selectLinters}"
+    asyncMode = cfg['Enable async mode (dont supported with pylint)']
+    if asyncMode
+      @cmd = "#{@cmd} --async"
     log 'Linter-Pylama: initialization completed'
 
   executionCheckHandler: (error, stdout, stderr) =>
