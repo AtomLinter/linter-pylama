@@ -1,3 +1,6 @@
+# 0.0.5
+* Improved detection of pyflakes 'invalid syntax' errors
+
 # 0.0.4
 * Improved detection of warnings
 * Fix detection pep257 warnings
