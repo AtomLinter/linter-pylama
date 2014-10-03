@@ -1,3 +1,6 @@
+# 0.0.6
+* Replaced null by ''
+
 # 0.0.5
 * Improved detection of pyflakes 'invalid syntax' errors
 
