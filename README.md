@@ -1,6 +1,6 @@
 # linter-pylama
 
-This package will lint your opened Python-files in Atom, using [pylama](https://github.com/klen/pylama#-pylama).
+This package will lint your opened Python-files in Atom, using [pylama](https://github.com/klen/pylama#-pylama) (wrapper for pylint, pep8, pep257, pyflakes and mccabe).
 
 ## Installation
 
