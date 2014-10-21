@@ -1,3 +1,8 @@
+# 0.0.7
+* Added skip file feature
+* Used JSON Schema for linter config
+* Disable aync mode for pylint
+
 # 0.0.6
 * Replaced null by ''
 
