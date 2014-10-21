@@ -18,6 +18,12 @@ module.exports =
       type: 'string'
       default: 'mccabe,pep8,pyflakes,pep257'
       description: 'Comma-separated list of the linters.'
+    skipFiles:
+      type: 'string'
+      default: ''
+      description: 'Skip files by masks.
+      Comma-separated list of a file names.
+      Example: */messages.py,*/__init__.py'
 
   activate: ->
     console.log 'Linter-Pylama: package loaded,

@@ -48,6 +48,10 @@ class LinterPylama extends Linter
           asyncMode = false
         if asyncMode
           @cmd = "#{@cmd} --async"
+        skipFiles = @cfg['skipFiles']
+        if skipFiles
+          @cmd = "#{@cmd} --skip #{skipFiles}"
+        console.log @cmd
         log 'Linter-Pylama: initialization completed'
 
   lintFile: (filePath, callback) =>
