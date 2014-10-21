@@ -1,7 +1,6 @@
 linterPath = atom.packages.getLoadedPackage("linter").path
 Linter = require "#{linterPath}/lib/linter"
 
-{config} = atom
 {exec} = require 'child_process'
 {log, warn} = require "#{linterPath}/lib/utils"
 
@@ -9,30 +8,16 @@ Linter = require "#{linterPath}/lib/linter"
 class LinterPylama extends Linter
   @enable: false
   @syntax: 'source.python'
-  cmd: 'pylama'
-  executablePath: null
+  @cmd: ''
+  @cfg: null
   linterName: 'pylama'
   regex: ':(?<line>\\d+):(?<col>\\d+):\\s+((((?<error>E)|(?<warning>[CDFNW]))(?<code>\\d+)(:\\s+|\\s+))|(.*?))(?<message>.+)\n'
 
   constructor: (@editor) ->
     super @editor
-    cfg = config.getSettings()['linter-pylama']
-    @executablePath = cfg['Executable path']
-    @cmd = if @executablePath then @executablePath else @cmd
+    @cfg = atom.config.get('linter-pylama')
+    @cmd = @cfg['executablePath']
     exec "#{@cmd} --version", @executionCheckHandler
-    ignoreErrors = cfg['Ignore errors and warnings (comma-separated)']
-    if ignoreErrors and ignoreErrors.length > 0
-      @cmd = "#{@cmd} -i #{ignoreErrors}"
-    selectLinters = cfg['Select linters (comma-separated)']
-    if selectLinters and selectLinters.length > 0
-      @cmd = "#{@cmd} -l #{selectLinters}"
-    asyncMode = cfg['Enable async mode (don\'t supported with pylint)']
-    if asyncMode and /pylint/i.test selectLinters
-      warn "Async mode don't supported with PyLint"
-      asyncMode = false
-    if asyncMode
-      @cmd = "#{@cmd} --async"
-    log 'Linter-Pylama: initialization completed'
 
   executionCheckHandler: (error, stdout, stderr) =>
     versionRegEx = /pylama ([\d\.]+)/
@@ -40,10 +25,30 @@ class LinterPylama extends Linter
       result = if error? then '#' + error.code + ': ' else ''
       result += 'stdout: ' + stdout if stdout.length > 0
       result += 'stderr: ' + stderr if stderr.length > 0
-      console.error "Linter-Pylama: #{@cmd} was not executable: #{result}"
+      result = result.replace(/\r\n|\n|\r/, '')
+      console.error "Linter-Pylama: \"#{@cmd}\" \
+      was not executable: \"#{result}\". \
+      Please, check executable path in the linter settings."
     else
       @enabled = true
       log "Linter-Pylama: found pylama " + versionRegEx.exec(stderr)[1]
+      do @initCmd
+
+  initCmd: =>
+      if @enabled
+        ignoreErrors = @cfg['ignoreErrorsAndWarnings']
+        if ignoreErrors and ignoreErrors.length > 0
+          @cmd = "#{@cmd} -i #{ignoreErrors}"
+        selectLinters = @cfg['selectLinters']
+        if selectLinters and selectLinters.length > 0
+          @cmd = "#{@cmd} -l #{selectLinters}"
+        asyncMode = @cfg['enableAsyncMode']
+        if asyncMode and /pylint/i.test selectLinters
+          warn "Async mode don't supported with PyLint"
+          asyncMode = false
+        if asyncMode
+          @cmd = "#{@cmd} --async"
+        log 'Linter-Pylama: initialization completed'
 
   lintFile: (filePath, callback) =>
     if @enabled
