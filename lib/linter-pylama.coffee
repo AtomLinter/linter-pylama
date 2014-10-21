@@ -26,7 +26,10 @@ class LinterPylama extends Linter
     selectLinters = cfg['Select linters (comma-separated)']
     if selectLinters and selectLinters.length > 0
       @cmd = "#{@cmd} -l #{selectLinters}"
-    asyncMode = cfg['Enable async mode (dont supported with pylint)']
+    asyncMode = cfg['Enable async mode (don\'t supported with pylint)']
+    if asyncMode and /pylint/i.test selectLinters
+      warn "Async mode don't supported with PyLint"
+      asyncMode = false
     if asyncMode
       @cmd = "#{@cmd} --async"
     log 'Linter-Pylama: initialization completed'
