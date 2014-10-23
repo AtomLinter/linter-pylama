@@ -51,7 +51,6 @@ class LinterPylama extends Linter
         skipFiles = @cfg['skipFiles']
         if skipFiles
           @cmd = "#{@cmd} --skip #{skipFiles}"
-        console.log @cmd
         log 'Linter-Pylama: initialization completed'
 
   lintFile: (filePath, callback) =>
