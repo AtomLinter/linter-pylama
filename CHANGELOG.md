@@ -1,3 +1,7 @@
+# 0.0.8
+* Added Virtualenv detection
+* Append PYTHONPATH variable to process.env
+
 # 0.0.7
 * Added skip file feature
 * Used JSON Schema for linter config
