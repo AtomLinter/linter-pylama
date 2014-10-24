@@ -1,6 +1,7 @@
 linterPath = atom.packages.getLoadedPackage("linter").path
 Linter = require "#{linterPath}/lib/linter"
 
+
 {exec} = require 'child_process'
 {log, warn} = require "#{linterPath}/lib/utils"
 
@@ -32,7 +33,11 @@ class LinterPylama extends Linter
     else
       @enabled = true
       log "Linter-Pylama: found pylama " + versionRegEx.exec(stderr)[1]
+      do @initPythonPath
       do @initCmd
+
+  initPythonPath: =>
+    process.env.PYTHONPATH = process.env.PWD
 
   initCmd: =>
       if @enabled
