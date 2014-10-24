@@ -1,5 +1,9 @@
 module.exports =
   config:
+    detectVirtualenv:
+      type: 'boolean'
+      default: false
+      description: 'Try to detect actived Virtualenv.'
     enableAsyncMode:
       type: 'boolean'
       default: false

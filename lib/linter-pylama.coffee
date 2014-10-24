@@ -4,6 +4,7 @@ Linter = require "#{linterPath}/lib/linter"
 
 {exec} = require 'child_process'
 {log, warn} = require "#{linterPath}/lib/utils"
+path = require 'path'
 
 
 class LinterPylama extends Linter
@@ -41,6 +42,10 @@ class LinterPylama extends Linter
 
   initCmd: =>
       if @enabled
+        detectVirtualenv = @cfg['detectVirtualenv']
+        if detectVirtualenv
+          @cmd = path.join(path.dirname(__dirname), 'bin', 'pylama')
+
         ignoreErrors = @cfg['ignoreErrorsAndWarnings']
         if ignoreErrors and ignoreErrors.length > 0
           @cmd = "#{@cmd} -i #{ignoreErrors}"
@@ -57,6 +62,7 @@ class LinterPylama extends Linter
         if skipFiles
           @cmd = "#{@cmd} --skip #{skipFiles}"
         log 'Linter-Pylama: initialization completed'
+
 
   lintFile: (filePath, callback) =>
     if @enabled
