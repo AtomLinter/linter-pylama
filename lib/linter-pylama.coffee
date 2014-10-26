@@ -2,7 +2,7 @@ linterPath = atom.packages.getLoadedPackage("linter").path
 Linter = require "#{linterPath}/lib/linter"
 
 
-{exec} = require 'child_process'
+exec = require 'child_process'
 {log, warn} = require "#{linterPath}/lib/utils"
 path = require 'path'
 
@@ -67,8 +67,6 @@ class LinterPylama extends Linter
   lintFile: (filePath, callback) =>
     if @enabled
       super filePath, callback
-    else
-      @processMessage "", callback
 
   formatMessage: (match) ->
     type = if match.error then match.error else match.warning
