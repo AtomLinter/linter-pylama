@@ -1,3 +1,8 @@
+# 0.0.9
+Removed async mode (because it not be used in the checking of the single files)
+Select linters through checkboxes
+Added internal Pylama
+
 # 0.0.8
 * Added Virtualenv detection
 * Append PYTHONPATH variable to process.env
