@@ -1,9 +1,5 @@
 module.exports =
   config:
-    detectVirtualenv:
-      type: 'boolean'
-      default: false
-      description: 'Try to detect actived Virtualenv.'
     enableAsyncMode:
       type: 'boolean'
       default: false
@@ -12,7 +8,8 @@ module.exports =
     executablePath:
       type: 'string'
       default: 'pylama'
-      description: 'Pylama excutable path. Example: /usr/local/bin/pylama'
+      description: 'Excutable path for external Pylama.
+      Example: /usr/local/bin/pylama'
     ignoreErrorsAndWarnings:
       type: 'string'
       default: ''
@@ -28,6 +25,11 @@ module.exports =
       description: 'Skip files by masks.
       Comma-separated list of a file names.
       Example: */messages.py,*/__init__.py'
+    useInternalPylama:
+      type: 'boolean'
+      default: false
+      description: 'Use internal Pylama with Virtualenv detection
+      and other cool thing. This is an experimental stuff and may be unstable.'
 
   activate: ->
     console.log 'Linter-Pylama: package loaded,

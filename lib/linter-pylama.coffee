@@ -2,24 +2,29 @@ linterPath = atom.packages.getLoadedPackage("linter").path
 Linter = require "#{linterPath}/lib/linter"
 
 
-exec = require 'child_process'
+{exec} = require 'child_process'
 {log, warn} = require "#{linterPath}/lib/utils"
 path = require 'path'
 
+cfg = atom.config.get('linter-pylama')
 
 class LinterPylama extends Linter
   @enable: false
   @syntax: 'source.python'
   @cmd: ''
-  @cfg: null
   linterName: 'pylama'
   regex: ':(?<line>\\d+):(?<col>\\d+):\\s+((((?<error>E)|(?<warning>[CDFNW]))(?<code>\\d+)(:\\s+|\\s+))|(.*?))(?<message>.+)\n'
 
   constructor: (@editor) ->
     super @editor
-    @cfg = atom.config.get('linter-pylama')
-    @cmd = @cfg['executablePath']
-    exec "#{@cmd} --version", @executionCheckHandler
+    useInternalPylama = cfg['useInternalPylama']
+    if useInternalPylama
+      @cmd = path.join(path.dirname(__dirname), 'bin', 'pylama.py')
+      @enabled = true
+      do @initCmd
+    else
+      @cmd = cfg['executablePath']
+      exec "#{@cmd} --version", @executionCheckHandler
 
   executionCheckHandler: (error, stdout, stderr) =>
     versionRegEx = /pylama ([\d\.]+)/
@@ -42,23 +47,19 @@ class LinterPylama extends Linter
 
   initCmd: =>
       if @enabled
-        detectVirtualenv = @cfg['detectVirtualenv']
-        if detectVirtualenv
-          @cmd = path.join(path.dirname(__dirname), 'bin', 'pylama')
-
-        ignoreErrors = @cfg['ignoreErrorsAndWarnings']
+        ignoreErrors = cfg['ignoreErrorsAndWarnings']
         if ignoreErrors and ignoreErrors.length > 0
           @cmd = "#{@cmd} -i #{ignoreErrors}"
-        selectLinters = @cfg['selectLinters']
+        selectLinters = cfg['selectLinters']
         if selectLinters and selectLinters.length > 0
           @cmd = "#{@cmd} -l #{selectLinters}"
-        asyncMode = @cfg['enableAsyncMode']
+        asyncMode = cfg['enableAsyncMode']
         if asyncMode and /pylint/i.test selectLinters
           warn "Async mode don't supported with PyLint"
           asyncMode = false
         if asyncMode
           @cmd = "#{@cmd} --async"
-        skipFiles = @cfg['skipFiles']
+        skipFiles = cfg['skipFiles']
         if skipFiles
           @cmd = "#{@cmd} --skip #{skipFiles}"
         log 'Linter-Pylama: initialization completed'
