@@ -15,21 +15,41 @@ module.exports =
       default: ''
       description: 'Comma-separated list of errors and warnings.
       Example: E111,E114,D101,D102,DW0311'
-    selectLinters:
-      type: 'string'
-      default: 'mccabe,pep8,pyflakes,pep257'
-      description: 'Comma-separated list of the linters.'
     skipFiles:
       type: 'string'
       default: ''
       description: 'Skip files by masks.
       Comma-separated list of a file names.
       Example: */messages.py,*/__init__.py'
-    useInternalPylama:
+    useMccabe:
+      type: 'boolean'
+      default: true
+      description: 'Use McCabe checker.'
+    usePep8:
+      type: 'boolean'
+      default: true
+      description: 'Use PEP8 style guide checker.'
+    usePyflakes:
+      type: 'boolean'
+      default: true
+      description: 'Use PyFlakes checker.'
+    usePep257:
+      type: 'boolean'
+      default: true
+      description: 'Use PEP257 docstring conventions checker.'
+    usePylint:
       type: 'boolean'
       default: false
-      description: 'Use internal Pylama with Virtualenv detection
-      and other cool thing. This is an experimental stuff and may be unstable.'
+      description: 'Use PyLint linter. May be unstable for internal Pylama.
+      For use with external Pylama you should install pylama_pylint module
+      ("pip install pylama-pylint").'
+    pylamaVersion:
+      type: 'string'
+      default: 'external'
+      enum: ['external', 'internal']
+      description: 'Select between internal Pylama (with Virtualenv detection
+      and other cool things or external stable Pylama (do not forget to
+      specify executable path).'
 
   activate: ->
     console.log 'Linter-Pylama: package loaded,
