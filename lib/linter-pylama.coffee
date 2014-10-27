@@ -63,16 +63,9 @@ class LinterPylama extends Linter
         if not linters
           linters = 'none'
         @cmd = "#{@cmd} -l #{linters}"
-        asyncMode = @cfg['enableAsyncMode']
-        if asyncMode and /pylint/i.test selectLinters
-          warn "Async mode don't supported with PyLint"
-          asyncMode = false
-        if asyncMode
-          @cmd = "#{@cmd} --async"
         skipFiles = @cfg['skipFiles']
         if skipFiles
           @cmd = "#{@cmd} --skip #{skipFiles}"
-        console.log @cmd
         log 'Linter-Pylama: initialization completed'
 
 

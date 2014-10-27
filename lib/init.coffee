@@ -1,10 +1,5 @@
 module.exports =
   config:
-    enableAsyncMode:
-      type: 'boolean'
-      default: false
-      description: 'Enable async mode. Usefull for checking a lot of
-      files. Dont supported with PyLint.'
     executablePath:
       type: 'string'
       default: 'pylama'
