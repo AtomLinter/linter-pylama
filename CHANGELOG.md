@@ -1,7 +1,10 @@
+# 0.0.10
+* Improved detection of the PYTHONPATH
+
 # 0.0.9
-Removed async mode (because it not be used in the checking of the single files)
-Select linters through checkboxes
-Added internal Pylama
+* Removed async mode (because it not be used in the checking of the single files)
+* Select linters through checkboxes
+* Added internal Pylama
 
 # 0.0.8
 * Added Virtualenv detection

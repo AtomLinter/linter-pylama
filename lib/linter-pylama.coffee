@@ -46,7 +46,12 @@ class LinterPylama extends Linter
     do @initCmd
 
   initPythonPath: =>
-    process.env.PYTHONPATH = process.env.PWD
+    pythonPath = if process.env['PYTHONPATH'] then process.env.PYTHONPATH else ''
+    sep = path.delimiter
+    process.env.PYTHONPATH =
+      "#{path.dirname(@editor.getPath())}#{sep}#{process.env.PWD}"
+    if pythonPath
+      process.env.PYTHONPATH = "#{process.env.PYTHONPATH}#{sep}#{pythonPath}"
 
   initCmd: =>
       if @enabled
