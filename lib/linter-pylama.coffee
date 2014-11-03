@@ -62,7 +62,10 @@ class LinterPylama extends Linter
         usePEP8 = if @cfg['usePep8'] then 'pep8' else ''
         usePyFlakes = if @cfg['usePyflakes'] then 'pyflakes' else ''
         usePEP257 = if @cfg['usePep257'] then 'pep257' else ''
-        usePylint = if @cfg['usePylint'] then 'pylint' else ''
+        if @cfg['pythonVersion'] is 'python2'
+          usePylint = if @cfg['usePylint'] then 'pylint' else ''
+        else
+          usePylint = if @cfg['usePylint'] then 'pylint3' else ''
         linters = [useMcCabe, usePEP8, usePEP257, usePyFlakes, usePylint].join()
         linters = linters.replace /(,,+)|(,$)/, ''
         if not linters
