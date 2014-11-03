@@ -31,7 +31,7 @@ class LinterPylama extends Linter
   executionCheckHandler: (error, stdout, stderr) =>
     if not @enabled
       versionRegEx = /pylama ([\d\.]+)/
-      if not versionRegEx.test(stderr)
+      if not (versionRegEx.test(stderr) or versionRegEx.test(stdout))
         result = if error? then '#' + error.code + ': ' else ''
         result += 'stdout: ' + stdout if stdout.length > 0
         result += 'stderr: ' + stderr if stderr.length > 0
