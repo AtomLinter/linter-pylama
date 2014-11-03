@@ -1,8 +1,8 @@
 """ Parse arguments from command line and configuration files. """
 import fnmatch
-import sys
 import os
-from re import compile as re
+import sys
+import re
 
 import logging
 from argparse import ArgumentParser
@@ -11,21 +11,23 @@ from . import __version__
 from .libs.inirama import Namespace
 from .lint.extensions import LINTERS
 
+#: A default checkers
+DEFAULT_LINTERS = 'pep8', 'pyflakes', 'mccabe'
+
+CURDIR = os.getcwd()
+CONFIG_FILES = 'pylama.ini', 'setup.cfg', 'tox.ini', 'pytest.ini'
+
+#: The skip pattern
+SKIP_PATTERN = re.compile(r'# *noqa\b', re.I).search
+
+# Parse a modelines
+MODELINE_RE = re.compile(r'^\s*#\s+(?:pylama:)\s*((?:[\w_]*=[^:\n\s]+:?)+)', re.I | re.M)
 
 # Setup a logger
 LOGGER = logging.getLogger('pylama')
 LOGGER.propagate = False
 STREAM = logging.StreamHandler(sys.stdout)
 LOGGER.addHandler(STREAM)
-
-#: A default checkers
-DEFAULT_LINTERS = 'pep8', 'pyflakes', 'mccabe'
-
-CURDIR = os.getcwd()
-CONFIG_FILES = [
-    os.path.join(CURDIR, basename) for basename in
-    ('pylama.ini', 'setup.cfg', 'tox.ini', 'pytest.ini')
-]
 
 
 class _Default(object):
@@ -103,7 +105,7 @@ PARSER.add_argument(
 
 PARSER.add_argument(
     "--skip", default=_Default(''),
-    type=lambda s: [re(fnmatch.translate(p)) for p in s.split(',') if p],
+    type=lambda s: [re.compile(fnmatch.translate(p)) for p in s.split(',') if p],
     help="Skip files by masks (comma-separated, Ex. */messages.py)")
 
 PARSER.add_argument("--report", "-r", help="Send report to file [REPORT]")
@@ -127,7 +129,7 @@ PARSER.add_argument(
 ACTIONS = dict((a.dest, a) for a in PARSER._actions)
 
 
-def parse_options(args=None, config=True, **overrides): # noqa
+def parse_options(args=None, config=True, rootdir=CURDIR, **overrides): # noqa
     """ Parse options from command line and configuration files.
 
     :return argparse.Namespace:
@@ -149,7 +151,7 @@ def parse_options(args=None, config=True, **overrides): # noqa
 
     # Compile options from ini
     if config:
-        cfg = get_config(str(options.options))
+        cfg = get_config(str(options.options), rootdir=rootdir)
         for k, v in cfg.default.items():
             LOGGER.info('Find option %s (%s)', k, v)
             passed_value = getattr(options, k, _Default())
@@ -171,7 +173,7 @@ def parse_options(args=None, config=True, **overrides): # noqa
                 options.linters_params[name] = dict(opts)
                 continue
 
-            mask = re(fnmatch.translate(name))
+            mask = re.compile(fnmatch.translate(name))
             options.file_params[mask] = dict(opts)
 
     # Postprocess options
@@ -179,6 +181,10 @@ def parse_options(args=None, config=True, **overrides): # noqa
     for name, value in opts.items():
         if isinstance(value, _Default):
             setattr(options, name, process_value(name, value.value))
+
+    if options.async and 'pylint' in options.linters:
+        LOGGER.warn('Cant parse code asynchronously while pylint is enabled.')
+        options.async = False
 
     return options
 
@@ -198,7 +204,7 @@ def process_value(name, value):
     return value
 
 
-def get_config(ini_path=None):
+def get_config(ini_path=None, rootdir=CURDIR):
     """ Load configuration from INI.
 
     :return Namespace:
@@ -209,6 +215,7 @@ def get_config(ini_path=None):
 
     if not ini_path:
         for path in CONFIG_FILES:
+            path = os.path.join(rootdir, path)
             if os.path.isfile(path) and os.access(path, os.R_OK):
                 config.read(path)
     else:
