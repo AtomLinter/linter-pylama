@@ -9,6 +9,7 @@ path = require 'path'
 
 class LinterPylama extends Linter
   @enable: false
+  @pylamaVersion: ''
   @syntax: 'source.python'
   @cmd: ''
   @cfg: null
@@ -31,7 +32,12 @@ class LinterPylama extends Linter
   executionCheckHandler: (error, stdout, stderr) =>
     if not @enabled
       versionRegEx = /pylama ([\d\.]+)/
-      if not (versionRegEx.test(stderr) or versionRegEx.test(stdout))
+      if versionRegEx.test(stderr)
+        @pylamaVersion = versionRegEx.exec(stderr)[1]
+      else
+        if versionRegEx.test(stdout)
+          @pylamaVersion = versionRegEx.exec(stdout)[1]
+      if not @pylamaVersion
         result = if error? then '#' + error.code + ': ' else ''
         result += 'stdout: ' + stdout if stdout.length > 0
         result += 'stderr: ' + stderr if stderr.length > 0
@@ -41,7 +47,7 @@ class LinterPylama extends Linter
         Please, check executable path in the linter settings."
         return
     @enabled = true
-    log "Linter-Pylama: found pylama " + versionRegEx.exec(stderr)[1]
+    log "Linter-Pylama: found pylama " + @pylamaVersion
     do @initPythonPath
     do @initCmd
 
