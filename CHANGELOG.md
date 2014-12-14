@@ -1,3 +1,7 @@
+# 0.0.12
+* Fix issue #3
+* Added pylint for python3
+
 # 0.0.11
 * Fix issue #2 - checking 'stdout' and 'stderr'
 * Update pylint to 6.1.1 and pylama_pylint to 1.0.1
