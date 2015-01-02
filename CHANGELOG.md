@@ -1,3 +1,6 @@
+# 0.0.14
+* Remove debug output
+
 # 0.0.13
 * Use atom.config.observe for linter settings
 

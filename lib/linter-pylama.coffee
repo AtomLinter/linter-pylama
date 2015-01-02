@@ -27,7 +27,6 @@ class LinterPylama extends Linter
     do @initPythonPath
     atom.config.observe 'linter-pylama.ignoreErrorsAndWarnings', =>
       ignoreErrors = atom.config.get('linter-pylama.ignoreErrorsAndWarnings')
-      console.log ignoreErrors
       if ignoreErrors and ignoreErrors.length > 0
         @ignoreErrors = "-i #{ignoreErrors}"
       else
@@ -140,8 +139,6 @@ class LinterPylama extends Linter
 
   lintFile: (filePath, callback) =>
     if @enabled
-      console.log @cmd
-      console.log filePath
       super filePath, callback
 
   formatMessage: (match) ->
