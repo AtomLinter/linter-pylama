@@ -9,46 +9,103 @@ path = require 'path'
 
 class LinterPylama extends Linter
   @enable: false
-  @pylamaVersion: ''
   @syntax: 'source.python'
   @cmd: ''
-  @cfg: null
+  @ignoreErrors: ''
+  @pylamaPath: ''
+  @skipFiles: ''
+  @useMcCabe: false
+  @usePEP8: false
+  @usePyFlakes: false
+  @usePyLint: false
+  @usePEP257: false
   linterName: 'pylama'
   regex: ':(?<line>\\d+):(?<col>\\d+):\\s+((((?<error>E)|(?<warning>[CDFNW]))(?<code>\\d+)(:\\s+|\\s+))|(.*?))(?<message>.+)\n'
 
   constructor: (@editor) ->
     super @editor
-    @cfg = atom.config.get('linter-pylama')
-    pylamaVersion = @cfg['pylamaVersion']
-    if pylamaVersion is 'internal'
-      @cmd = path.join(path.dirname(__dirname), 'bin', 'pylama.py')
-      @enabled = true
-      do @initPythonPath
+    do @initPythonPath
+    atom.config.observe 'linter-pylama.ignoreErrorsAndWarnings', =>
+      ignoreErrors = atom.config.get('linter-pylama.ignoreErrorsAndWarnings')
+      console.log ignoreErrors
+      if ignoreErrors and ignoreErrors.length > 0
+        @ignoreErrors = "-i #{ignoreErrors}"
+      else
+        @ignoreErrors = ''
       do @initCmd
-    else
-      @cmd = @cfg['executablePath']
-      exec "#{@cmd} --version", @executionCheckHandler
+    atom.config.observe 'linter-pylama.usePylint', =>
+      pythonVersion = atom.config.get('linter-pylama.pythonVersion')
+      usePyLint = atom.config.get('linter-pylama.usePylint')
+      if pythonVersion is 'python2'
+        @usePyLint = if usePyLint then 'pylint' else ''
+      else
+        @usePyLint = if usePyLint then 'pylint3' else ''
+      do @initCmd
+    atom.config.observe 'linter-pylama.useMccabe', =>
+      useMcCabe = atom.config.get('linter-pylama.useMccabe')
+      @useMcCabe = if useMcCabe then 'mccabe' else ''
+      do @initCmd
+    atom.config.observe 'linter-pylama.usePep8', =>
+      usePEP8 = atom.config.get('linter-pylama.usePep8')
+      @usePEP8 = if usePEP8 then 'pep8' else ''
+      do @initCmd
+    atom.config.observe 'linter-pylama.usePep257', =>
+      usePEP257 = atom.config.get('linter-pylama.usePep257')
+      @usePEP257 = if usePEP257 then 'pep257' else ''
+      do @initCmd
+    atom.config.observe 'linter-pylama.usePyflakes', =>
+      usePyFlakes = atom.config.get('linter-pylama.usePyflakes')
+      @usePyFlakes = if usePyFlakes then 'pyflakes' else ''
+      do @initCmd
+    atom.config.observe 'linter-pylama.skipFiles', =>
+      skipFiles = atom.config.get('linter-pylama.skipFiles')
+      if skipFiles
+        @skipFiles = "--skip #{skipFiles}"
+      else
+        @skipFiles = ''
+      do @initCmd
+
+    atom.config.observe 'linter-pylama.executablePath', =>
+      pylamaVersion = atom.config.get('linter-pylama.pylamaVersion')
+      if pylamaVersion is 'external'
+        @enable = false
+        @pylamaPath = atom.config.get 'linter-pylama.executablePath'
+        exec "#{@pylamaPath} --version", @executionCheckHandler
+
+    atom.config.observe 'linter-pylama.pylamaVersion', =>
+      pylamaVersion = atom.config.get('linter-pylama.pylamaVersion')
+      if pylamaVersion is 'internal'
+        @pylamaPath = path.join(path.dirname(__dirname), 'bin', 'pylama.py')
+        @enabled = true
+        @pylamaVersion = pylamaVersion
+        do @initCmd
+      else
+        pylamaPath = atom.config.get 'linter-pylama.executablePath'
+        if @pylamaPath != pylamaPath
+          @enabled = false
+          @pylamaPath = pylamaPath
+          exec "#{@pylamaPath} --version", @executionCheckHandler
 
   executionCheckHandler: (error, stdout, stderr) =>
+    pylamaVersion = ''
     if not @enabled
       versionRegEx = /pylama ([\d\.]+)/
       if versionRegEx.test(stderr)
-        @pylamaVersion = versionRegEx.exec(stderr)[1]
+        pylamaVersion = versionRegEx.exec(stderr)[1]
       else
         if versionRegEx.test(stdout)
-          @pylamaVersion = versionRegEx.exec(stdout)[1]
-      if not @pylamaVersion
+          pylamaVersion = versionRegEx.exec(stdout)[1]
+      if not pylamaVersion
         result = if error? then '#' + error.code + ': ' else ''
         result += 'stdout: ' + stdout if stdout.length > 0
         result += 'stderr: ' + stderr if stderr.length > 0
         result = result.replace(/\r\n|\n|\r/, '')
-        console.error "Linter-Pylama: \"#{@cmd}\" \
+        console.error "Linter-Pylama: \"#{@pylamaPath}\" \
         was not executable: \"#{result}\". \
         Please, check executable path in the linter settings."
         return
-    @enabled = true
-    log "Linter-Pylama: found pylama " + @pylamaVersion
-    do @initPythonPath
+      @enabled = true
+    log "Linter-Pylama: found pylama " + pylamaVersion
     do @initCmd
 
   initPythonPath: =>
@@ -61,30 +118,30 @@ class LinterPylama extends Linter
 
   initCmd: =>
       if @enabled
-        ignoreErrors = @cfg['ignoreErrorsAndWarnings']
-        if ignoreErrors and ignoreErrors.length > 0
-          @cmd = "#{@cmd} -i #{ignoreErrors}"
-        useMcCabe = if @cfg['useMccabe'] then 'mccabe' else ''
-        usePEP8 = if @cfg['usePep8'] then 'pep8' else ''
-        usePyFlakes = if @cfg['usePyflakes'] then 'pyflakes' else ''
-        usePEP257 = if @cfg['usePep257'] then 'pep257' else ''
-        if @cfg['pythonVersion'] is 'python2'
-          usePylint = if @cfg['usePylint'] then 'pylint' else ''
-        else
-          usePylint = if @cfg['usePylint'] then 'pylint3' else ''
-        linters = [useMcCabe, usePEP8, usePEP257, usePyFlakes, usePylint].join()
-        linters = linters.replace /(,,+)|(,$)/, ''
+        @cmd = "#{@pylamaPath}"
+        if @ignoreErrors
+          @cmd = "#{@cmd} #{@ignoreErrors}"
+        if @skipFiles
+          @cmd = "#{@cmd} #{@skipFiles}"
+        linters = [
+          @useMcCabe
+          @usePEP8
+          @usePEP257
+          @usePyFlakes
+          @usePyLint
+        ].join()
+        linters = linters.replace /(,+)/g, ','
+        linters = linters.replace /(^,+)|(,+$)/g, ''
         if not linters
           linters = 'none'
         @cmd = "#{@cmd} -l #{linters}"
-        skipFiles = @cfg['skipFiles']
-        if skipFiles
-          @cmd = "#{@cmd} --skip #{skipFiles}"
         log 'Linter-Pylama: initialization completed'
 
 
   lintFile: (filePath, callback) =>
     if @enabled
+      console.log @cmd
+      console.log filePath
       super filePath, callback
 
   formatMessage: (match) ->
