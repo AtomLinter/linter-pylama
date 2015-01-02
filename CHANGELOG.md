@@ -1,3 +1,6 @@
+# 0.0.13
+* Use atom.config.observe for linter settings
+
 # 0.0.12
 * Fix issue #3
 * Added pylint for python3
