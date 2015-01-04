@@ -1,3 +1,6 @@
+# 0.0.15
+* Pylint version updated to 1.4
+
 # 0.0.14
 * Remove debug output
 

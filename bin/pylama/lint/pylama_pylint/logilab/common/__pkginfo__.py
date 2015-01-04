@@ -1,4 +1,4 @@
-# copyright 2003-2013 LOGILAB S.A. (Paris, FRANCE), all rights reserved.
+# copyright 2003-2014 LOGILAB S.A. (Paris, FRANCE), all rights reserved.
 # contact http://www.logilab.fr/ -- mailto:contact@logilab.fr
 #
 # This file is part of logilab-common.
@@ -25,7 +25,7 @@ modname = 'common'
 subpackage_of = 'logilab'
 subpackage_master = True
 
-numversion = (0, 61, 0)
+numversion = (0, 63, 2)
 version = '.'.join([str(num) for num in numversion])
 
 license = 'LGPL' # 2.1 or later
@@ -40,7 +40,11 @@ from os.path import join
 scripts = [join('bin', 'pytest')]
 include_dirs = [join('test', 'data')]
 
-install_requires = []
+install_requires = [
+        'six >= 1.4.0',
+        ]
+test_require = ['pytz']
+
 if sys.version_info < (2, 7):
     install_requires.append('unittest2 >= 0.5.1')
 if os.name == 'nt':

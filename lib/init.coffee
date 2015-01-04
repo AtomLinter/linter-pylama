@@ -38,12 +38,6 @@ module.exports =
       description: 'Use PyLint linter. May be unstable for internal Pylama.
       For use with external Pylama you should install pylama_pylint module
       ("pip install pylama-pylint").'
-    pythonVersion:
-      type: 'string'
-      default: 'python2'
-      enum: ['python2', 'python3']
-      description: 'Choose your Python version (exec \'python --version\'
-      in the terminal).'
     pylamaVersion:
       type: 'string'
       default: 'external'

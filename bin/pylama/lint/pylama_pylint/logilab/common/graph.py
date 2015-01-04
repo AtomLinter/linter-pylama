@@ -29,6 +29,7 @@ import os
 import sys
 import tempfile
 import codecs
+import errno
 
 def escape(value):
     """Make <value> usable in a dot file."""
@@ -63,7 +64,7 @@ class DotBackend:
             assert charset.lower() in ('utf-8', 'iso-8859-1', 'latin1'), \
                    'unsupported charset %s' % charset
             self.emit('charset="%s"' % charset)
-        for param in additionnal_param.iteritems():
+        for param in sorted(additionnal_param.items()):
             self.emit('='.join(param))
 
     def get_source(self):
@@ -114,13 +115,18 @@ class DotBackend:
                 use_shell = True
             else:
                 use_shell = False
-            if mapfile:
-                subprocess.call([self.renderer,  '-Tcmapx', '-o', mapfile, '-T', target, dot_sourcepath, '-o', outputfile],
-                                shell=use_shell)
-            else:
-                subprocess.call([self.renderer, '-T',  target,
-                                 dot_sourcepath, '-o',  outputfile],
-                                shell=use_shell)
+            try:
+                if mapfile:
+                    subprocess.call([self.renderer,  '-Tcmapx', '-o', mapfile, '-T', target, dot_sourcepath, '-o', outputfile],
+                                    shell=use_shell)
+                else:
+                    subprocess.call([self.renderer, '-T',  target,
+                                     dot_sourcepath, '-o',  outputfile],
+                                    shell=use_shell)
+            except OSError as e:
+                if e.errno == errno.ENOENT:
+                    e.strerror = 'File not found: {0}'.format(self.renderer)
+                    raise
             os.unlink(dot_sourcepath)
         return outputfile
 

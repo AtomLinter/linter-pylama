@@ -27,7 +27,6 @@
 :type BUILTIN_MODULES: dict
 :var BUILTIN_MODULES: dictionary with builtin module names has key
 """
-from __future__ import with_statement
 
 __docformat__ = "restructuredtext en"
 
@@ -37,6 +36,8 @@ from os.path import splitext, join, abspath, isdir, dirname, exists, basename
 from imp import find_module, load_module, C_BUILTIN, PY_COMPILED, PKG_DIRECTORY
 from distutils.sysconfig import get_config_var, get_python_lib, get_python_version
 from distutils.errors import DistutilsPlatformError
+
+from six.moves import range
 
 try:
     import zipimport
@@ -93,7 +94,7 @@ class LazyObject(object):
     def __getattribute__(self, attr):
         try:
             return super(LazyObject, self).__getattribute__(attr)
-        except AttributeError, ex:
+        except AttributeError as ex:
             return getattr(self._getobj(), attr)
 
     def __call__(self, *args, **kwargs):
@@ -455,13 +456,16 @@ def get_source_file(filename, include_no_ext=False):
 
 def cleanup_sys_modules(directories):
     """remove submodules of `directories` from `sys.modules`"""
-    for modname, module in sys.modules.items():
+    cleaned = []
+    for modname, module in list(sys.modules.items()):
         modfile = getattr(module, '__file__', None)
         if modfile:
             for directory in directories:
                 if modfile.startswith(directory):
+                    cleaned.append(modname)
                     del sys.modules[modname]
                     break
+    return cleaned
 
 
 def is_python_source(filename):
@@ -493,7 +497,7 @@ def is_standard_module(modname, std_path=(STD_LIB_DIR,)):
     modname = modname.split('.')[0]
     try:
         filename = file_from_modpath([modname])
-    except ImportError, ex:
+    except ImportError as ex:
         # import failed, i'm probably not so wrong by supposing it's
         # not standard...
         return 0
@@ -612,7 +616,10 @@ def _module_file(modpath, path=None):
     except AttributeError:
         checkeggs = False
     # pkg_resources support (aka setuptools namespace packages)
-    if pkg_resources is not None and modpath[0] in pkg_resources._namespace_packages and len(modpath) > 1:
+    if (pkg_resources is not None
+            and modpath[0] in pkg_resources._namespace_packages
+            and modpath[0] in sys.modules
+            and len(modpath) > 1):
         # setuptools has added into sys.modules a module object with proper
         # __path__, get back information from there
         module = sys.modules[modpath.pop(0)]

@@ -78,7 +78,7 @@ class DeprecationManager(object):
         def decorator(func):
             message = reason or 'The function "%s" is deprecated'
             if '%s' in message:
-                message %= func.func_name
+                message %= func.__name__
             def wrapped(*args, **kwargs):
                 self.warn(version, message, stacklevel+1)
                 return func(*args, **kwargs)
@@ -125,11 +125,12 @@ class DeprecationManager(object):
             return self.class_deprecated(version)(old_name, (new_class,), clsdict)
         except (NameError, TypeError):
             # old-style class
+            warn = self.warn
             class DeprecatedClass(new_class):
                 """FIXME: There might be a better way to handle old/new-style class
                 """
                 def __init__(self, *args, **kwargs):
-                    self.warn(version, message, stacklevel=3)
+                    warn(version, message, stacklevel=3)
                     new_class.__init__(self, *args, **kwargs)
             return DeprecatedClass
 

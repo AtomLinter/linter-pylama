@@ -33,12 +33,8 @@ class LinterPylama extends Linter
         @ignoreErrors = ''
       do @initCmd
     atom.config.observe 'linter-pylama.usePylint', =>
-      pythonVersion = atom.config.get('linter-pylama.pythonVersion')
       usePyLint = atom.config.get('linter-pylama.usePylint')
-      if pythonVersion is 'python2'
-        @usePyLint = if usePyLint then 'pylint' else ''
-      else
-        @usePyLint = if usePyLint then 'pylint3' else ''
+      @usePyLint = if usePyLint then 'pylint' else ''
       do @initCmd
     atom.config.observe 'linter-pylama.useMccabe', =>
       useMcCabe = atom.config.get('linter-pylama.useMccabe')
