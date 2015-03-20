@@ -20,7 +20,7 @@ class LinterPylama extends Linter
   @usePyLint: false
   @usePEP257: false
   linterName: 'pylama'
-  regex: ':(?<line>\\d+):(?<col>\\d+):\\s+((((?<error>E)|(?<warning>[CDFNW]))(?<code>\\d+)(:\\s+|\\s+))|(.*?))(?<message>.+)\n'
+  regex: ':(?<line>\\d+):(?<col>\\d+):\\s+((((?<error>E)|(?<warning>[CDFNW]))(?<code>\\d+)(:\\s+|\\s+))|(.*?))(?<message>.+)(\r)?\n'
 
   constructor: (@editor) ->
     super @editor
