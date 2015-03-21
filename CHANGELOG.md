@@ -1,3 +1,7 @@
+# 0.0.16
+* Fix regex string for Windows line endings. See #4
+* Fix detection an external pylama on Windows. See #4
+
 # 0.0.15
 * Pylint version updated to 1.4
 
