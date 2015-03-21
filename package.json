@@ -3,7 +3,7 @@
   "linter-package": true,
   "activationEvents": [],
   "main": "./lib/init",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "description": "Lint python on the fly, using pylama",
   "repository": "https://github.com/AtomLinter/linter-pylama",
   "license": "MIT",
