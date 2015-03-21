@@ -33,27 +33,27 @@ class LinterPylama extends Linter
         @ignoreErrors = ''
       do @initCmd
     atom.config.observe 'linter-pylama.usePylint', =>
-      usePyLint = atom.config.get('linter-pylama.usePylint')
+      usePyLint = atom.config.get 'linter-pylama.usePylint'
       @usePyLint = if usePyLint then 'pylint' else ''
       do @initCmd
     atom.config.observe 'linter-pylama.useMccabe', =>
-      useMcCabe = atom.config.get('linter-pylama.useMccabe')
+      useMcCabe = atom.config.get 'linter-pylama.useMccabe'
       @useMcCabe = if useMcCabe then 'mccabe' else ''
       do @initCmd
     atom.config.observe 'linter-pylama.usePep8', =>
-      usePEP8 = atom.config.get('linter-pylama.usePep8')
+      usePEP8 = atom.config.get 'linter-pylama.usePep8'
       @usePEP8 = if usePEP8 then 'pep8' else ''
       do @initCmd
     atom.config.observe 'linter-pylama.usePep257', =>
-      usePEP257 = atom.config.get('linter-pylama.usePep257')
+      usePEP257 = atom.config.get 'linter-pylama.usePep257'
       @usePEP257 = if usePEP257 then 'pep257' else ''
       do @initCmd
     atom.config.observe 'linter-pylama.usePyflakes', =>
-      usePyFlakes = atom.config.get('linter-pylama.usePyflakes')
+      usePyFlakes = atom.config.get 'linter-pylama.usePyflakes'
       @usePyFlakes = if usePyFlakes then 'pyflakes' else ''
       do @initCmd
     atom.config.observe 'linter-pylama.skipFiles', =>
-      skipFiles = atom.config.get('linter-pylama.skipFiles')
+      skipFiles = atom.config.get 'linter-pylama.skipFiles'
       if skipFiles
         @skipFiles = "--skip #{skipFiles}"
       else
@@ -61,16 +61,16 @@ class LinterPylama extends Linter
       do @initCmd
 
     atom.config.observe 'linter-pylama.executablePath', =>
-      pylamaVersion = atom.config.get('linter-pylama.pylamaVersion')
+      pylamaVersion = atom.config.get 'linter-pylama.pylamaVersion'
       if pylamaVersion is 'external'
         @enable = false
         @pylamaPath = atom.config.get 'linter-pylama.executablePath'
         exec "#{@pylamaPath} --version", @executionCheckHandler
 
     atom.config.observe 'linter-pylama.pylamaVersion', =>
-      pylamaVersion = atom.config.get('linter-pylama.pylamaVersion')
+      pylamaVersion = atom.config.get 'linter-pylama.pylamaVersion'
       if pylamaVersion is 'internal'
-        @pylamaPath = path.join(path.dirname(__dirname), 'bin', 'pylama.py')
+        @pylamaPath = path.join path.dirname(__dirname), 'bin', 'pylama.py'
         @enabled = true
         @pylamaVersion = pylamaVersion
         do @initCmd
