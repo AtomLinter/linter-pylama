@@ -84,12 +84,11 @@ class LinterPylama extends Linter
   executionCheckHandler: (error, stdout, stderr) =>
     pylamaVersion = ''
     if not @enabled
-      versionRegEx = /pylama ([\d\.]+)/
+      versionRegEx = /pylama(.exe)? ([\d\.]+)/
       if versionRegEx.test(stderr)
-        pylamaVersion = versionRegEx.exec(stderr)[1]
-      else
-        if versionRegEx.test(stdout)
-          pylamaVersion = versionRegEx.exec(stdout)[1]
+        pylamaVersion = versionRegEx.exec(stderr)[0]
+      else if versionRegEx.test(stdout)
+        pylamaVersion = versionRegEx.exec(stdout)[0]
       if not pylamaVersion
         result = if error? then '#' + error.code + ': ' else ''
         result += 'stdout: ' + stdout if stdout.length > 0
@@ -100,7 +99,7 @@ class LinterPylama extends Linter
         Please, check executable path in the linter settings."
         return
       @enabled = true
-    log "Linter-Pylama: found pylama " + pylamaVersion
+    log "Linter-Pylama: found " + pylamaVersion
     do @initCmd
 
   initPythonPath: =>
