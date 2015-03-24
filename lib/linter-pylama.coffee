@@ -8,7 +8,7 @@ path = require 'path'
 
 
 class LinterPylama extends Linter
-  @enable: false
+  @enabled: false
   @syntax: 'source.python'
   @cmd: ''
   @ignoreErrors: ''
@@ -63,7 +63,7 @@ class LinterPylama extends Linter
     atom.config.observe 'linter-pylama.executablePath', =>
       pylamaVersion = atom.config.get 'linter-pylama.pylamaVersion'
       if pylamaVersion is 'external'
-        @enable = false
+        @enabled = false
         @pylamaPath = atom.config.get 'linter-pylama.executablePath'
         exec "#{@pylamaPath} --version", @executionCheckHandler
 
