@@ -15,17 +15,10 @@ from __future__ import with_statement
 
 import os
 import sys
-import logging
 import tokenize as tk
 from itertools import takewhile, dropwhile, chain
 from optparse import OptionParser
 from re import compile as re
-try:  # Python 3.x
-    from ConfigParser import RawConfigParser
-except ImportError:  # Python 2.x
-    from configparser import RawConfigParser
-
-log = logging.getLogger(__name__)
 
 
 try:
@@ -49,47 +42,26 @@ except NameError:  # Python 2.5 and earlier
                 return default
 
 
-__version__ = '0.5.0'
+__version__ = '0.3.2'
 __all__ = ('check', 'collect')
 
-PROJECT_CONFIG = ('setup.cfg', 'tox.ini', '.pep257')
 
-
-def humanize(string):
-    return re(r'(.)([A-Z]+)').sub(r'\1 \2', string).lower()
-
-
-def is_magic(name):
-    return name.startswith('__') and name.endswith('__')
-
-
-def is_ascii(string):
-    return all(ord(char) < 128 for char in string)
-
-
-def is_blank(string):
-    return not string.strip()
-
-
-def leading_space(string):
-    return re('\s*').match(string).group()
+humanize = lambda string: re(r'(.)([A-Z]+)').sub(r'\1 \2', string).lower()
+is_magic = lambda name: name.startswith('__') and name.endswith('__')
+is_ascii = lambda string: all(ord(char) < 128 for char in string)
+is_blank = lambda string: not string.strip()
+leading_space = lambda string: re('\s*').match(string).group()
 
 
 class Value(object):
 
-    def __init__(self, *args):
-        vars(self).update(zip(self._fields, args))
-
-    def __hash__(self):
-        return hash(repr(self))
-
-    def __eq__(self, other):
-        return other and vars(self) == vars(other)
+    __init__ = lambda self, *args: vars(self).update(zip(self._fields, args))
+    __hash__ = lambda self: hash(repr(self))
+    __eq__ = lambda self, other: other and vars(self) == vars(other)
 
     def __repr__(self):
-        kwargs = ', '.join('{}={!r}'.format(field, getattr(self, field))
-                           for field in self._fields)
-        return '{}({})'.format(self.__class__.__name__, kwargs)
+        args = [vars(self)[field] for field in self._fields]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(map(repr, args)))
 
 
 class Definition(Value):
@@ -102,9 +74,7 @@ class Definition(Value):
     all = property(lambda self: self.module.all)
     _slice = property(lambda self: slice(self.start - 1, self.end))
     source = property(lambda self: ''.join(self._source[self._slice]))
-
-    def __iter__(self):
-        return chain([self], *self.children)
+    __iter__ = lambda self: chain([self], *self.children)
 
     @property
     def _publicity(self):
@@ -121,9 +91,7 @@ class Module(Definition):
     _nest = staticmethod(lambda s: {'def': Function, 'class': Class}[s])
     module = property(lambda self: self)
     all = property(lambda self: self._all)
-
-    def __str__(self):
-        return 'at module level'
+    __str__ = lambda self: 'at module level'
 
 
 class Function(Definition):
@@ -163,18 +131,9 @@ class NestedClass(Class):
     is_public = False
 
 
-class TokenKind(int):
-    def __repr__(self):
-        return "tk.{}".format(tk.tok_name[self])
-
-
 class Token(Value):
 
     _fields = 'kind value start end source'.split()
-
-    def __init__(self, *args):
-        super(Token, self).__init__(*args)
-        self.kind = TokenKind(self.kind)
 
 
 class TokenStream(object):
@@ -227,54 +186,35 @@ class Parser(object):
     def consume(self, kind):
         assert self.stream.move().kind == kind
 
-    def leapfrog(self, kind, value=None):
-        """Skip tokens in the stream until a certain token kind is reached.
-
-        If `value` is specified, tokens whose values are different will also
-        be skipped.
-        """
-        while self.current is not None:
-            if (self.current.kind == kind and
-               (value is None or self.current.value == value)):
+    def leapfrog(self, kind):
+        for token in self.stream:
+            if token.kind == kind:
                 self.consume(kind)
                 return
-            self.stream.move()
 
     def parse_docstring(self):
-        """Parse a single docstring and return its value."""
-        log.debug("parsing docstring, token is %r (%s)",
-                  self.current.kind, self.current.value)
-        while self.current.kind in (tk.COMMENT, tk.NEWLINE, tk.NL):
-            self.stream.move()
-            log.debug("parsing docstring, token is %r (%s)",
-                      self.current.kind, self.current.value)
-        if self.current.kind == tk.STRING:
-            docstring = self.current.value
-            self.stream.move()
-            return docstring
-        return None
+        for token in self.stream:
+            if token.kind in [tk.COMMENT, tk.NEWLINE, tk.NL]:
+                continue
+            elif token.kind == tk.STRING:
+                return token.value
+            else:
+                return None
 
     def parse_definitions(self, class_, all=False):
-        """Parse multiple defintions and yield them."""
-        while self.current is not None:
-            log.debug("parsing defintion list, current token is %r (%s)",
-                      self.current.kind, self.current.value)
-            if all and self.current.value == '__all__':
+        for token in self.stream:
+            if all and token.value == '__all__':
                 self.parse_all()
-            elif self.current.value in ['def', 'class']:
-                yield self.parse_definition(class_._nest(self.current.value))
-            elif self.current.kind == tk.INDENT:
+            if token.value in ['def', 'class']:
+                yield self.parse_definition(class_._nest(token.value))
+            if token.kind == tk.INDENT:
                 self.consume(tk.INDENT)
                 for definition in self.parse_definitions(class_):
                     yield definition
-            elif self.current.kind == tk.DEDENT:
-                self.consume(tk.DEDENT)
+            if token.kind == tk.DEDENT:
                 return
-            else:
-                self.stream.move()
 
     def parse_all(self):
-        """Parse the __all__ definition in a module."""
         assert self.current.value == '__all__'
         self.consume(tk.NAME)
         if self.current.value != '=':
@@ -294,84 +234,44 @@ class Parser(object):
                    "assuming __all__ is not mutated.\n" % self.filename)
             sys.stderr.write(msg)
         self.consume(tk.OP)
-
-        self.all = []
-        all_content = "("
-        while self.current.kind != tk.OP or self.current.value not in ")]":
-            if self.current.kind in (tk.NL, tk.COMMENT):
-                pass
-            elif (self.current.kind == tk.STRING or
-                  self.current.value == ','):
-                all_content += self.current.value
-            else:
-                raise AllError('Could not evaluate contents of __all__. ')
+        s = '('
+        if self.current.kind != tk.STRING:
+            raise AllError('Could not evaluate contents of __all__. ')
+        while self.current.value not in ')]':
+            s += self.current.value
             self.stream.move()
-        self.consume(tk.OP)
-        all_content += ")"
+        s += ')'
         try:
-            self.all = eval(all_content, {})
-        except BaseException as e:
-            raise AllError('Could not evaluate contents of __all__.'
-                           '\bThe value was %s. The exception was:\n%s'
-                           % (all_content, e))
+            self.all = eval(s, {})
+        except BaseException:
+            raise AllError('Could not evaluate contents of __all__: %s. ' % s)
 
     def parse_module(self):
-        """Parse a module (and its children) and return a Module object."""
-        log.debug("parsing module.")
         start = self.line
         docstring = self.parse_docstring()
         children = list(self.parse_definitions(Module, all=True))
-        assert self.current is None, self.current
+        assert self.current is None
         end = self.line
         module = Module(self.filename, self.source, start, end,
                         docstring, children, None, self.all)
         for child in module.children:
             child.parent = module
-        log.debug("finished parsing module.")
         return module
 
     def parse_definition(self, class_):
-        """Parse a defintion and return its value in a `class_` object."""
         start = self.line
         self.consume(tk.NAME)
         name = self.current.value
-        log.debug("parsing %s '%s'", class_.__name__, name)
-        self.stream.move()
-        if self.current.kind == tk.OP and self.current.value == '(':
-            parenthesis_level = 0
-            while True:
-                if self.current.kind == tk.OP:
-                    if self.current.value == '(':
-                        parenthesis_level += 1
-                    elif self.current.value == ')':
-                        parenthesis_level -= 1
-                        if parenthesis_level == 0:
-                            break
-                self.stream.move()
-        if self.current.kind != tk.OP or self.current.value != ':':
-            self.leapfrog(tk.OP, value=":")
-        else:
-            self.consume(tk.OP)
-        if self.current.kind in (tk.NEWLINE, tk.COMMENT):
-            self.leapfrog(tk.INDENT)
-            assert self.current.kind != tk.INDENT
-            docstring = self.parse_docstring()
-            log.debug("parsing nested defintions.")
-            children = list(self.parse_definitions(class_))
-            log.debug("finished parsing nested defintions for '%s'", name)
-            end = self.line - 1
-        else:  # one-liner definition
-            docstring = self.parse_docstring()
-            children = []
-            end = self.line
-            self.leapfrog(tk.NEWLINE)
+        self.leapfrog(tk.INDENT)
+        assert self.current.kind != tk.INDENT
+        docstring = self.parse_docstring()
+        children = list(self.parse_definitions(class_))
+        assert self.current.kind == tk.DEDENT
+        end = self.line - 1
         definition = class_(name, self.source, start, end,
                             docstring, children, None)
         for child in definition.children:
             child.parent = definition
-        log.debug("finished parsing %s '%s'. Next token is %r (%s)",
-                  class_.__name__, name, self.current.kind,
-                  self.current.value)
         return definition
 
 
@@ -379,33 +279,17 @@ class Error(object):
 
     """Error in docstring style."""
 
-    # should be overridden by inheriting classes
-    code = None
-    short_desc = None
-    context = None
-
     # Options that define how errors are printed:
     explain = False
     source = False
 
-    def __init__(self, *parameters):
-        self.parameters = parameters
-        self.definition = None
-        self.explanation = None
+    def __init__(self, message=None, final=False):
+        self.message, self.is_final = message, final
+        self.definition, self.explanation = [None, None]
 
-    def set_context(self, definition, explanation):
-        self.definition = definition
-        self.explanation = explanation
-
+    code = property(lambda self: self.message.partition(':')[0])
     filename = property(lambda self: self.definition.module.name)
     line = property(lambda self: self.definition.start)
-
-    @property
-    def message(self):
-        ret = '%s: %s' % (self.code, self.short_desc)
-        if self.context is not None:
-            ret += ' (' + self.context % self.parameters + ')'
-        return ret
 
     @property
     def lines(self):
@@ -446,105 +330,9 @@ class Error(object):
         return (self.filename, self.line) < (other.filename, other.line)
 
 
-class ErrorRegistry(object):
-    groups = []
-
-    class ErrorGroup(object):
-
-        def __init__(self, prefix, name):
-            self.prefix = prefix
-            self.name = name
-            self.errors = []
-
-        def create_error(self, error_code, error_desc, error_context=None):
-            # TODO: check prefix
-
-            class _Error(Error):
-                code = error_code
-                short_desc = error_desc
-                context = error_context
-
-            self.errors.append(_Error)
-            return _Error
-
-    @classmethod
-    def create_group(cls, prefix, name):
-        group = cls.ErrorGroup(prefix, name)
-        cls.groups.append(group)
-        return group
-
-    @classmethod
-    def get_error_codes(cls):
-        for group in cls.groups:
-            for error in group.errors:
-                yield error
-
-    @classmethod
-    def to_rst(cls):
-        sep_line = '+' + 6 * '-' + '+' + '-' * 71 + '+\n'
-        blank_line = '|' + 78 * ' ' + '|\n'
-        table = ''
-        for group in cls.groups:
-            table += sep_line
-            table += blank_line
-            table += '|' + ('**%s**' % group.name).center(78) + '|\n'
-            table += blank_line
-            for error in group.errors:
-                table += sep_line
-                table += ('|' + error.code.center(6) + '| ' +
-                          error.short_desc.ljust(70) + '|\n')
-        table += sep_line
-        return table
-
-
-D1xx = ErrorRegistry.create_group('D1', 'Missing Docstrings')
-D100 = D1xx.create_error('D100', 'Missing docstring in public module')
-D101 = D1xx.create_error('D101', 'Missing docstring in public class')
-D102 = D1xx.create_error('D102', 'Missing docstring in public method')
-D103 = D1xx.create_error('D103', 'Missing docstring in public function')
-
-D2xx = ErrorRegistry.create_group('D2', 'Whitespace Issues')
-D200 = D2xx.create_error('D200', 'One-line docstring should fit on one line '
-                                 'with quotes', 'found %s')
-D201 = D2xx.create_error('D201', 'No blank lines allowed before function '
-                                 'docstring', 'found %s')
-D202 = D2xx.create_error('D202', 'No blank lines allowed after function '
-                                 'docstring', 'found %s')
-D203 = D2xx.create_error('D203', '1 blank line required before class '
-                                 'docstring', 'found %s')
-D204 = D2xx.create_error('D204', '1 blank line required after class '
-                                 'docstring', 'found %s')
-D205 = D2xx.create_error('D205', '1 blank line required between summary line '
-                                 'and description', 'found %s')
-D206 = D2xx.create_error('D206', 'Docstring should be indented with spaces, '
-                                 'not tabs')
-D207 = D2xx.create_error('D207', 'Docstring is under-indented')
-D208 = D2xx.create_error('D208', 'Docstring is over-indented')
-D209 = D2xx.create_error('D209', 'Multi-line docstring closing quotes should '
-                                 'be on a separate line')
-D210 = D2xx.create_error('D210', 'No whitespaces allowed surrounding '
-                                 'docstring text')
-
-D3xx = ErrorRegistry.create_group('D3', 'Quotes Issues')
-D300 = D3xx.create_error('D300', 'Use """triple double quotes"""',
-                         'found %s-quotes')
-D301 = D3xx.create_error('D301', 'Use r""" if any backslashes in a docstring')
-D302 = D3xx.create_error('D302', 'Use u""" for Unicode docstrings')
-
-D4xx = ErrorRegistry.create_group('D4', 'Docstring Content Issues')
-D400 = D4xx.create_error('D400', 'First line should end with a period',
-                         'not %r')
-D401 = D4xx.create_error('D401', 'First line should be in imperative mood',
-                         '%r, not %r')
-D402 = D4xx.create_error('D402', 'First line should not be the function\'s '
-                                 '"signature"')
-
-
-def get_option_parser():
+def parse_options():
     parser = OptionParser(version=__version__,
                           usage='Usage: pep257 [options] [<file|dir>...]')
-    parser.config_options = ('explain', 'source', 'ignore', 'match',
-                             'match-dir', 'debug', 'verbose', 'count')
     option = parser.add_option
     option('-e', '--explain', action='store_true',
            help='show explanation of each error')
@@ -562,13 +350,7 @@ def get_option_parser():
            help="search only dirs that exactly match <pattern> regular "
                 "expression; default is --match-dir='[^\.].*', which matches "
                 "all dirs that don't start with a dot")
-    option('-d', '--debug', action='store_true',
-           help='print debug information')
-    option('-v', '--verbose', action='store_true',
-           help='print status information')
-    option('--count', action='store_true',
-           help='print total number of errors to stdout')
-    return parser
+    return parser.parse_args()
 
 
 def collect(names, match=lambda name: True, match_dir=lambda name: True):
@@ -584,8 +366,9 @@ def collect(names, match=lambda name: True, match_dir=lambda name: True):
     for name in names:  # map(expanduser, names):
         if os.path.isdir(name):
             for root, dirs, filenames in os.walk(name):
-                # Skip any dirs that do not match match_dir
-                dirs[:] = [dir for dir in dirs if match_dir(dir)]
+                for dir in dirs:
+                    if not match_dir(dir):
+                        dirs.remove(dir)  # do not visit those dirs
                 for filename in filenames:
                     if match(filename):
                         yield os.path.join(root, filename)
@@ -605,7 +388,6 @@ def check(filenames, ignore=()):
 
     """
     for filename in filenames:
-        log.info('Checking file %s.', filename)
         try:
             with open(filename) as file:
                 source = file.read()
@@ -619,94 +401,16 @@ def check(filenames, ignore=()):
             yield SyntaxError('invalid syntax in file %s' % filename)
 
 
-def get_options(args, opt_parser):
-    config = RawConfigParser()
-    parent = tail = args and os.path.abspath(os.path.commonprefix(args))
-    while tail:
-        for fn in PROJECT_CONFIG:
-            full_path = os.path.join(parent, fn)
-            if config.read(full_path):
-                log.info('local configuration: in %s.', full_path)
-                break
-        parent, tail = os.path.split(parent)
-
-    new_options = None
-    if config.has_section('pep257'):
-        option_list = dict([(o.dest, o.type or o.action)
-                            for o in opt_parser.option_list])
-
-        # First, read the default values
-        new_options, _ = opt_parser.parse_args([])
-
-        # Second, parse the configuration
-        pep257_section = 'pep257'
-        for opt in config.options(pep257_section):
-            if opt.replace('_', '-') not in opt_parser.config_options:
-                print("Unknown option '{}' ignored".format(opt))
-                continue
-            normalized_opt = opt.replace('-', '_')
-            opt_type = option_list[normalized_opt]
-            if opt_type in ('int', 'count'):
-                value = config.getint(pep257_section, opt)
-            elif opt_type == 'string':
-                value = config.get(pep257_section, opt)
-            else:
-                assert opt_type in ('store_true', 'store_false')
-                value = config.getboolean(pep257_section, opt)
-            setattr(new_options, normalized_opt, value)
-
-    # Third, overwrite with the command-line options
-    options, _ = opt_parser.parse_args(values=new_options)
-    log.debug("options: %s", options)
-    return options
-
-
-def setup_stream_handler(options):
-    if log.handlers:
-        for handler in log.handlers:
-            log.removeHandler(handler)
-    stream_handler = logging.StreamHandler(sys.stdout)
-    stream_handler.setLevel(logging.WARNING)
-    if options.debug:
-        stream_handler.setLevel(logging.DEBUG)
-    elif options.verbose:
-        stream_handler.setLevel(logging.INFO)
-    else:
-        stream_handler.setLevel(logging.WARNING)
-    log.addHandler(stream_handler)
-
-
-def run_pep257():
-    log.setLevel(logging.DEBUG)
-    opt_parser = get_option_parser()
-    # setup the logger before parsing the config file, so that command line
-    # arguments for debug / verbose will be printed.
-    options, arguments = opt_parser.parse_args()
-    setup_stream_handler(options)
-    # We parse the files before opening the config file, since it changes where
-    # we look for the file.
-    options = get_options(arguments, opt_parser)
-    # Setup the handler again with values from the config file.
-    setup_stream_handler(options)
-
+def main(options, arguments):
+    Error.explain = options.explain
+    Error.source = options.source
     collected = collect(arguments or ['.'],
                         match=re(options.match + '$').match,
                         match_dir=re(options.match_dir + '$').match)
-
-    log.debug("starting pep257 in debug mode.")
-
-    Error.explain = options.explain
-    Error.source = options.source
-    collected = list(collected)
-    errors = check(collected, ignore=options.ignore.split(','))
     code = 0
-    count = 0
-    for error in errors:
+    for error in check(collected, ignore=options.ignore.split(',')):
         sys.stderr.write('%s\n' % error)
         code = 1
-        count += 1
-    if options.count:
-        print(count)
     return code
 
 
@@ -744,8 +448,10 @@ class PEP257Checker(object):
                         if error is not None:
                             partition = check.__doc__.partition('.\n')
                             message, _, explanation = partition
-                            error.set_context(explanation=explanation,
-                                              definition=definition)
+                            if error.message is None:
+                                error.message = message
+                            error.explanation = explanation
+                            error.definition = definition
                             yield error
                             if check._terminal:
                                 terminate = True
@@ -775,9 +481,9 @@ class PEP257Checker(object):
         """
         if (not docstring and definition.is_public or
                 docstring and is_blank(eval(docstring))):
-            codes = {Module: D100, Class: D101, NestedClass: D101,
-                     Method: D102, Function: D103, NestedFunction: D103}
-            return codes[type(definition)]()
+            codes = {Module: 'D100', Class: 'D101', NestedClass: 'D101',
+                     Method: 'D102', Function: 'D103', NestedFunction: 'D103'}
+            return Error('%s: Docstring missing' % codes[type(definition)])
 
     @check_for(Definition)
     def check_one_liners(self, definition, docstring):
@@ -792,7 +498,8 @@ class PEP257Checker(object):
             if len(lines) > 1:
                 non_empty_lines = sum(1 for l in lines if not is_blank(l))
                 if non_empty_lines == 1:
-                    return D200(len(lines))
+                    return Error('D200: One-line docstring should not occupy '
+                                 '%s lines' % len(lines))
 
     @check_for(Function)
     def check_no_blank_before(self, function, docstring):  # def
@@ -810,9 +517,13 @@ class PEP257Checker(object):
             blanks_before_count = sum(takewhile(bool, reversed(blanks_before)))
             blanks_after_count = sum(takewhile(bool, blanks_after))
             if blanks_before_count != 0:
-                yield D201(blanks_before_count)
+                yield Error('D201: No blank lines allowed *before* %s '
+                            'docstring, found %s'
+                            % (function.kind, blanks_before_count))
             if not all(blanks_after) and blanks_after_count != 0:
-                yield D202(blanks_after_count)
+                yield Error('D202: No blank lines allowed *after* %s '
+                            'docstring, found %s'
+                            % (function.kind, blanks_after_count))
 
     @check_for(Class)
     def check_blank_before_after_class(slef, class_, docstring):
@@ -826,7 +537,7 @@ class PEP257Checker(object):
         docstring.
 
         """
-        # NOTE: this gives false-positive in this case
+        # NOTE: this gives flase-positive in this case
         # class Foo:
         #
         #     """Docstring."""
@@ -841,13 +552,15 @@ class PEP257Checker(object):
             blanks_before_count = sum(takewhile(bool, reversed(blanks_before)))
             blanks_after_count = sum(takewhile(bool, blanks_after))
             if blanks_before_count != 1:
-                yield D203(blanks_before_count)
+                yield Error('D203: Expected 1 blank line *before* class '
+                            'docstring, found %s' % blanks_before_count)
             if not all(blanks_after) and blanks_after_count != 1:
-                yield D204(blanks_after_count)
+                yield Error('D204: Expected 1 blank line *after* class '
+                            'docstring, found %s' % blanks_after_count)
 
     @check_for(Definition)
     def check_blank_after_summary(self, definition, docstring):
-        """D205: Put one blank line between summary line and description.
+        """D205: Blank line missing between one-line summary and description.
 
         Multi-line docstrings consist of a summary line just like a one-line
         docstring, followed by a blank line, followed by a more elaborate
@@ -858,11 +571,8 @@ class PEP257Checker(object):
         """
         if docstring:
             lines = eval(docstring).strip().split('\n')
-            if len(lines) > 1:
-                post_summary_blanks = list(map(is_blank, lines[1:]))
-                blanks_count = sum(takewhile(bool, post_summary_blanks))
-                if blanks_count != 1:
-                    return D205(blanks_count)
+            if len(lines) > 1 and not is_blank(lines[1]):
+                return Error()
 
     @check_for(Definition)
     def check_indent(self, definition, docstring):
@@ -880,12 +590,13 @@ class PEP257Checker(object):
                 lines = lines[1:]  # First line does not need indent.
                 indents = [leading_space(l) for l in lines if not is_blank(l)]
                 if set(' \t') == set(''.join(indents) + indent):
-                    yield D206()
-                if (len(indents) > 1 and min(indents[:-1]) > indent or
-                        indents[-1] > indent):
-                    yield D208()
+                    return Error('D206: Docstring indented with both tabs and '
+                                 'spaces')
+                if (len(indents) > 1 and min(indents[:-1]) > indent
+                        or indents[-1] > indent):
+                    return Error('D208: Docstring is over-indented')
                 if min(indents) < indent:
-                    yield D207()
+                    return Error('D207: Docstring is under-indented')
 
     @check_for(Definition)
     def check_newline_after_last_paragraph(self, definition, docstring):
@@ -899,16 +610,8 @@ class PEP257Checker(object):
             lines = [l for l in eval(docstring).split('\n') if not is_blank(l)]
             if len(lines) > 1:
                 if docstring.split("\n")[-1].strip() not in ['"""', "'''"]:
-                    return D209()
-
-    @check_for(Definition)
-    def check_surrounding_whitespaces(self, definition, docstring):
-        """D210: No whitespaces allowed surrounding docstring text."""
-        if docstring:
-            lines = eval(docstring).split('\n')
-            if lines[0].startswith(' ') or \
-                    len(lines) == 1 and lines[0].endswith(' '):
-                return D210()
+                    return Error('D209: Put multi-line docstring closing '
+                                 'quotes on separate line')
 
     @check_for(Definition)
     def check_triple_double_quotes(self, definition, docstring):
@@ -930,7 +633,7 @@ class PEP257Checker(object):
             return
         if docstring and not docstring.startswith(('"""', 'r"""', 'u"""')):
             quotes = "'''" if "'''" in docstring[:4] else "'"
-            return D300(quotes)
+            return Error('D300: Expected """-quotes, got %s-quotes' % quotes)
 
     @check_for(Definition)
     def check_backslashes(self, definition, docstring):
@@ -943,7 +646,7 @@ class PEP257Checker(object):
         # Just check that docstring is raw, check_triple_double_quotes
         # ensures the correct quotes.
         if docstring and '\\' in docstring and not docstring.startswith('r'):
-            return D301()
+            return Error()
 
     @check_for(Definition)
     def check_unicode_docstring(self, definition, docstring):
@@ -956,7 +659,7 @@ class PEP257Checker(object):
         # ensures the correct quotes.
         if docstring and sys.version_info[0] <= 2:
             if not is_ascii(docstring) and not docstring.startswith('u'):
-                return D302()
+                return Error()
 
     @check_for(Definition)
     def check_ends_with_period(self, definition, docstring):
@@ -968,7 +671,8 @@ class PEP257Checker(object):
         if docstring:
             summary_line = eval(docstring).strip().split('\n')[0]
             if not summary_line.endswith('.'):
-                return D400(summary_line[-1])
+                return Error("D400: First line should end with '.', not %r"
+                             % summary_line[-1])
 
     @check_for(Function)
     def check_imperative_mood(self, function, docstring):  # def context
@@ -984,7 +688,8 @@ class PEP257Checker(object):
             if stripped:
                 first_word = stripped.split()[0]
                 if first_word.endswith('s') and not first_word.endswith('ss'):
-                    return D401(first_word[:-1], first_word)
+                    return Error('D401: First line should be imperative: '
+                                 '%r, not %r' % (first_word[:-1], first_word))
 
     @check_for(Function)
     def check_no_signature(self, function, docstring):  # def context
@@ -997,7 +702,8 @@ class PEP257Checker(object):
         if docstring:
             first_line = eval(docstring).strip().split('\n')[0]
             if function.name + '(' in first_line.replace(' ', ''):
-                return D402()
+                return Error("D402: First line should not be %s's signature"
+                             % function.kind)
 
     # Somewhat hard to determine if return value is mentioned.
     # @check(Function)
@@ -1013,12 +719,8 @@ class PEP257Checker(object):
                 return Error()
 
 
-def main():
+if __name__ == '__main__':
     try:
-        sys.exit(run_pep257())
+        sys.exit(main(*parse_options()))
     except KeyboardInterrupt:
         pass
-
-
-if __name__ == '__main__':
-    main()
