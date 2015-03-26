@@ -61,6 +61,9 @@ class SpellingChecker(BaseTokenChecker):
                   '%s\nDid you mean: \'%s\'?',
                   'wrong-spelling-in-docstring',
                   'Used when a word in docstring is not spelled correctly.'),
+        'C0403': ('Invalid characters %r in a docstring',
+                  'invalid-characters-in-docstring',
+                  'Used when a word in docstring cannot be checked by enchant.'),
         }
     options = (('spelling-dict',
                 {'default' : '', 'type' : 'choice', 'metavar' : '<dict name>',
@@ -97,7 +100,7 @@ class SpellingChecker(BaseTokenChecker):
         if not dict_name:
             return
 
-        self.ignore_list = self.config.spelling_ignore_words.split(",")
+        self.ignore_list = [w.strip() for w in self.config.spelling_ignore_words.split(",")]
         # "param" appears in docstring in param description and
         # "pylint" appears in comments in pylint pragmas.
         self.ignore_list.extend(["param", "pylint"])
@@ -168,7 +171,13 @@ class SpellingChecker(BaseTokenChecker):
                 word = word[2:]
 
             # If it is a known word, then continue.
-            if self.spelling_dict.check(word):
+            try:
+                if self.spelling_dict.check(word):
+                    continue
+            except enchant.errors.Error:
+                # this can only happen in docstrings, not comments
+                self.add_message('invalid-characters-in-docstring',
+                                 line=line_num, args=(word,))
                 continue
 
             # Store word to private dict or raise a message.

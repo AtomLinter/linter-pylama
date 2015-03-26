@@ -30,7 +30,7 @@ from pylint.checkers import BaseChecker
 from pylint.checkers.utils import (
     PYMETHODS, overrides_a_method, check_messages, is_attr_private,
     is_attr_protected, node_frame_class, safe_infer, is_builtin_object,
-    decorated_with_property)
+    decorated_with_property, unimplemented_abstract_methods)
 import six
 
 if sys.version_info >= (3, 0):
@@ -107,9 +107,9 @@ def _is_attribute_property(name, klass):
 MSGS = {
     'F0202': ('Unable to check methods signature (%s / %s)',
               'method-check-failed',
-              'Used when Pylint has been unable to check methods signature \
-              compatibility for an unexpected reason. Please report this kind \
-              if you don\'t make sense of it.'),
+              'Used when Pylint has been unable to check methods signature '
+              'compatibility for an unexpected reason. Please report this kind '
+              'if you don\'t make sense of it.'),
 
     'E0202': ('An attribute defined in %s line %s hides this method',
               'method-hidden',
@@ -118,35 +118,35 @@ MSGS = {
               'client code.'),
     'E0203': ('Access to member %r before its definition line %s',
               'access-member-before-definition',
-              'Used when an instance member is accessed before it\'s actually\
-              assigned.'),
+              'Used when an instance member is accessed before it\'s actually '
+              'assigned.'),
     'W0201': ('Attribute %r defined outside __init__',
               'attribute-defined-outside-init',
-              'Used when an instance attribute is defined outside the __init__\
-              method.'),
+              'Used when an instance attribute is defined outside the __init__ '
+              'method.'),
 
     'W0212': ('Access to a protected member %s of a client class', # E0214
               'protected-access',
-              'Used when a protected member (i.e. class member with a name \
-              beginning with an underscore) is access outside the class or a \
-              descendant of the class where it\'s defined.'),
+              'Used when a protected member (i.e. class member with a name '
+              'beginning with an underscore) is access outside the class or a '
+              'descendant of the class where it\'s defined.'),
 
     'E0211': ('Method has no argument',
               'no-method-argument',
-              'Used when a method which should have the bound instance as \
-              first argument has no argument defined.'),
+              'Used when a method which should have the bound instance as '
+              'first argument has no argument defined.'),
     'E0213': ('Method should have "self" as first argument',
               'no-self-argument',
-              'Used when a method has an attribute different the "self" as\
-              first argument. This is considered as an error since this is\
-              a so common convention that you shouldn\'t break it!'),
-    'C0202': ('Class method %s should have %s as first argument', # E0212
+              'Used when a method has an attribute different the "self" as '
+              'first argument. This is considered as an error since this is '
+              'a so common convention that you shouldn\'t break it!'),
+    'C0202': ('Class method %s should have %s as first argument',
               'bad-classmethod-argument',
               'Used when a class method has a first argument named differently '
               'than the value specified in valid-classmethod-first-arg option '
               '(default to "cls"), recommended to easily differentiate them '
               'from regular instance methods.'),
-    'C0203': ('Metaclass method %s should have %s as first argument', # E0214
+    'C0203': ('Metaclass method %s should have %s as first argument',
               'bad-mcs-method-argument',
               'Used when a metaclass method has a first agument named '
               'differently than the value specified in valid-classmethod-first'
@@ -167,58 +167,58 @@ MSGS = {
              ),
     'R0201': ('Method could be a function',
               'no-self-use',
-              'Used when a method doesn\'t use its bound instance, and so could\
-              be written as a function.'
+              'Used when a method doesn\'t use its bound instance, and so could '
+              'be written as a function.'
              ),
 
     'E0221': ('Interface resolved to %s is not a class',
               'interface-is-not-class',
-              'Used when a class claims to implement an interface which is not \
-              a class.'),
+              'Used when a class claims to implement an interface which is not '
+              'a class.'),
     'E0222': ('Missing method %r from %s interface',
               'missing-interface-method',
-              'Used when a method declared in an interface is missing from a \
-              class implementing this interface'),
-    'W0221': ('Arguments number differs from %s method',
+              'Used when a method declared in an interface is missing from a '
+              'class implementing this interface'),
+    'W0221': ('Arguments number differs from %s %r method',
               'arguments-differ',
-              'Used when a method has a different number of arguments than in \
-              the implemented interface or in an overridden method.'),
-    'W0222': ('Signature differs from %s method',
+              'Used when a method has a different number of arguments than in '
+              'the implemented interface or in an overridden method.'),
+    'W0222': ('Signature differs from %s %r method',
               'signature-differs',
-              'Used when a method signature is different than in the \
-              implemented interface or in an overridden method.'),
+              'Used when a method signature is different than in the '
+              'implemented interface or in an overridden method.'),
     'W0223': ('Method %r is abstract in class %r but is not overridden',
               'abstract-method',
-              'Used when an abstract method (i.e. raise NotImplementedError) is \
-              not overridden in concrete class.'
+              'Used when an abstract method (i.e. raise NotImplementedError) is '
+              'not overridden in concrete class.'
              ),
-    'F0220': ('failed to resolve interfaces implemented by %s (%s)', # W0224
+    'F0220': ('failed to resolve interfaces implemented by %s (%s)',
               'unresolved-interface',
-              'Used when a Pylint as failed to find interfaces implemented by \
-               a class'),
+              'Used when a Pylint as failed to find interfaces implemented by '
+              ' a class'),
 
 
     'W0231': ('__init__ method from base class %r is not called',
               'super-init-not-called',
-              'Used when an ancestor class method has an __init__ method \
-              which is not called by a derived class.'),
+              'Used when an ancestor class method has an __init__ method '
+              'which is not called by a derived class.'),
     'W0232': ('Class has no __init__ method',
               'no-init',
-              'Used when a class has no __init__ method, neither its parent \
-              classes.'),
+              'Used when a class has no __init__ method, neither its parent '
+              'classes.'),
     'W0233': ('__init__ method from a non direct base class %r is called',
               'non-parent-init-called',
-              'Used when an __init__ method is called on a class which is not \
-              in the direct ancestors for the analysed class.'),
+              'Used when an __init__ method is called on a class which is not '
+              'in the direct ancestors for the analysed class.'),
     'W0234': ('__iter__ returns non-iterator',
               'non-iterator-returned',
-              'Used when an __iter__ method returns something which is not an \
-               iterable (i.e. has no `%s` method)' % NEXT_METHOD),
+              'Used when an __iter__ method returns something which is not an '
+               'iterable (i.e. has no `%s` method)' % NEXT_METHOD),
     'E0235': ('__exit__ must accept 3 arguments: type, value, traceback',
               'bad-context-manager',
-              'Used when the __exit__ special method, belonging to a \
-               context manager, does not accept 3 arguments \
-               (type, value, traceback).'),
+              'Used when the __exit__ special method, belonging to a '
+              'context manager, does not accept 3 arguments '
+              '(type, value, traceback).'),
     'E0236': ('Invalid object %r in __slots__, must contain '
               'only non empty strings',
               'invalid-slots-object',
@@ -496,7 +496,7 @@ a metaclass class method.'}
             if infered is YES:
                 continue
             if (not isinstance(infered, astroid.Const) or
-                    not isinstance(infered.value, str)):
+                    not isinstance(infered.value, six.string_types)):
                 self.add_message('invalid-slots-object',
                                  args=infered.as_string(),
                                  node=elt)
@@ -585,6 +585,8 @@ a metaclass class method.'}
                 return
 
             slots = klass.slots()
+            if slots is None:
+                return
             # If any ancestor doesn't use slots, the slots
             # defined for this class are superfluous.
             if any('__slots__' not in ancestor.locals and
@@ -798,21 +800,28 @@ a metaclass class method.'}
         """check that the given class node implements abstract methods from
         base classes
         """
+        def is_abstract(method):
+            return method.is_abstract(pass_is_abstract=False)
+
         # check if this class abstract
         if class_is_abstract(node):
             return
-        for method in node.methods():
+
+        methods = sorted(
+            unimplemented_abstract_methods(node, is_abstract).items(),
+            key=lambda item: item[0],
+        )
+        for name, method in methods:
             owner = method.parent.frame()
             if owner is node:
                 continue
             # owner is not this class, it must be a parent class
             # check that the ancestor's method is not abstract
-            if method.name in node.locals:
+            if name in node.locals:
                 # it is redefined as an attribute or with a descriptor
                 continue
-            if method.is_abstract(pass_is_abstract=False):
-                self.add_message('abstract-method', node=node,
-                                 args=(method.name, owner.name))
+            self.add_message('abstract-method', node=node,
+                             args=(name, owner.name))
 
     def _check_interfaces(self, node):
         """check that the given class node really implements declared
@@ -884,26 +893,27 @@ a metaclass class method.'}
                expr.expr.func.name == 'super':
                 return
             try:
-                klass = next(expr.expr.infer())
-                if klass is YES:
-                    continue
-                # The infered klass can be super(), which was
-                # assigned to a variable and the `__init__` was called later.
-                #
-                # base = super()
-                # base.__init__(...)
+                for klass in expr.expr.infer():
+                    if klass is YES:
+                        continue
+                    # The infered klass can be super(), which was
+                    # assigned to a variable and the `__init__`
+                    # was called later.
+                    #
+                    # base = super()
+                    # base.__init__(...)
 
-                if (isinstance(klass, astroid.Instance) and
-                        isinstance(klass._proxied, astroid.Class) and
-                        is_builtin_object(klass._proxied) and
-                        klass._proxied.name == 'super'):
-                    return
-                try:
-                    del not_called_yet[klass]
-                except KeyError:
-                    if klass not in to_call:
-                        self.add_message('non-parent-init-called',
-                                         node=expr, args=klass.name)
+                    if (isinstance(klass, astroid.Instance) and
+                            isinstance(klass._proxied, astroid.Class) and
+                            is_builtin_object(klass._proxied) and
+                            klass._proxied.name == 'super'):
+                        return
+                    try:
+                        del not_called_yet[klass]
+                    except KeyError:
+                        if klass not in to_call:
+                            self.add_message('non-parent-init-called',
+                                             node=expr, args=klass.name)
             except astroid.InferenceError:
                 continue
         for klass, method in six.iteritems(not_called_yet):
@@ -930,9 +940,13 @@ a metaclass class method.'}
         if is_attr_private(method1.name):
             return
         if len(method1.args.args) != len(refmethod.args.args):
-            self.add_message('arguments-differ', args=class_type, node=method1)
+            self.add_message('arguments-differ',
+                             args=(class_type, method1.name),
+                             node=method1)
         elif len(method1.args.defaults) < len(refmethod.args.defaults):
-            self.add_message('signature-differs', args=class_type, node=method1)
+            self.add_message('signature-differs',
+                             args=(class_type, method1.name),
+                             node=method1)
 
     def is_first_attr(self, node):
         """Check that attribute lookup name use first attribute variable name

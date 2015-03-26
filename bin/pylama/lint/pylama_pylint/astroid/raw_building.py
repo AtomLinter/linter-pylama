@@ -154,7 +154,7 @@ def object_build_function(node, member, localname):
     if varkw is not None:
         args.append(varkw)
     func = build_function(getattr(member, '__name__', None) or localname, args,
-                          defaults, member.func_code.co_flags, member.__doc__)
+                          defaults, six.get_function_code(member).co_flags, member.__doc__)
     node.add_local_node(func, localname)
 
 def object_build_datadescriptor(node, member, name):
@@ -332,12 +332,14 @@ class InspectBuilder(object):
 Astroid_BUILDER = InspectBuilder()
 
 _CONST_PROXY = {}
-def astroid_bootstrapping():
+def _astroid_bootstrapping(astroid_builtin=None):
     """astroid boot strapping the builtins module"""
     # this boot strapping is necessary since we need the Const nodes to
     # inspect_build builtins, and then we can proxy Const
-    from logilab.common.compat import builtins
-    astroid_builtin = Astroid_BUILDER.inspect_build(builtins)
+    if astroid_builtin is None:
+        from logilab.common.compat import builtins
+        astroid_builtin = Astroid_BUILDER.inspect_build(builtins)
+
     for cls, node_cls in CONST_CLS.items():
         if cls is type(None):
             proxy = build_class('NoneType')
@@ -349,7 +351,7 @@ def astroid_bootstrapping():
         else:
             _CONST_PROXY[cls] = proxy
 
-astroid_bootstrapping()
+_astroid_bootstrapping()
 
 # TODO : find a nicer way to handle this situation;
 # However __proxied introduced an
