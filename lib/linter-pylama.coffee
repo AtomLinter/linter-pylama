@@ -118,11 +118,11 @@ class LinterPylama extends Linter
         if @skipFiles
           @cmd = "#{@cmd} #{@skipFiles}"
         linters = [
+          @usePyFlakes
           @useMcCabe
           @usePEP8
-          @usePEP257
-          @usePyFlakes
           @usePyLint
+          @usePEP257
         ].join()
         linters = linters.replace /(,+)/g, ','
         linters = linters.replace /(^,+)|(,+$)/g, ''
