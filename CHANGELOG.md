@@ -1,3 +1,7 @@
+# 0.0.17
+* Update pylama version to 6.3.1
+* Update pylint version to 1.4.3
+
 # 0.0.16
 * Fix regex string for Windows line endings. See #4
 * Fix detection an external pylama on Windows. See #4
