@@ -1,3 +1,6 @@
+# 0.0.18
+* Fix warning about deprecated activationEvents.
+
 # 0.0.17
 * Update pylama version to 6.3.1
 * Update pylint version to 1.4.3
