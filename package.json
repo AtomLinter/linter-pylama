@@ -2,7 +2,7 @@
   "name": "linter-pylama",
   "linter-package": true,
   "main": "./lib/init",
-  "version": "0.0.17",
+  "version": "0.0.18",
   "description": "Lint python on the fly, using pylama",
   "repository": "https://github.com/AtomLinter/linter-pylama",
   "license": "MIT",
