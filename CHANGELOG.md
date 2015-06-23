@@ -1,3 +1,13 @@
+# 0.0.20
+* Temporary fix for Linter 1.0.1.
+* Use python from env.
+* Added file name in regex message.
+* Used @cwd.
+* Optimize PYTHONPATH.
+
+# 0.0.19
+* Refactoring.
+
 # 0.0.18
 * Fix warning about deprecated activationEvents.
 
