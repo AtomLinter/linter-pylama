@@ -8,7 +8,7 @@ path = require 'path'
 
 
 class LinterPylama extends Linter
-  regex: ':(?<line>\\d+):(?<col>\\d+):\\s+((((?<error>E)|(?<warning>[CDFNW]))(?<code>\\d+)(:\\s+|\\s+))|(.*?))(?<message>.+)(\r)?\n'
+  regex: '(?<file>.+):(?<line>\\d+):(?<col>\\d+):\\s+((((?<error>E)|(?<warning>[CDFNW]))(?<code>\\d+)(:\\s+|\\s+))|(.*?))(?<message>.+)(\r)?\n'
 
   linterName: 'pylama'
   @syntax: 'source.python'
