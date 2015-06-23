@@ -1,7 +1,7 @@
 linterPath = atom.packages.getLoadedPackage("linter").path
 Linter = require "#{linterPath}/lib/linter"
 
-
+fs = require "fs"
 {exec} = require 'child_process'
 {log, warn} = require "#{linterPath}/lib/utils"
 path = require 'path'
@@ -106,6 +106,7 @@ class LinterPylama extends Linter
       @cmd = ''
       return
     cmd = [@pylamaPath]
+    cmd.push '-F'
 
     ignoreEW = atom.config.get 'linter-pylama.ignoreErrorsAndWarnings'
     if ignoreEW then cmd.push ['-i', ignoreEW]
