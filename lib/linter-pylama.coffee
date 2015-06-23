@@ -78,9 +78,8 @@ class LinterPylama extends Linter
     pythonPath = pythonPath.split sep
     pythonPath = pythonPath.filter(Boolean)
 
-    editor_path = path.dirname(@editor.getPath())
-    if editor_path and editor_path not in pythonPath
-      pythonPath.push editor_path
+    if @cwd and @cwd not in pythonPath
+      pythonPath.push @cwd
 
     process_path = process.env.PWD
     if process_path and process_path not in pythonPath
