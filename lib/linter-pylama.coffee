@@ -73,12 +73,20 @@ class LinterPylama extends Linter
 
 
   initPythonPath: =>
-    pythonPath = if process.env['PYTHONPATH'] then process.env.PYTHONPATH else ''
     sep = path.delimiter
-    process.env.PYTHONPATH =
-      "#{path.dirname(@editor.getPath())}#{sep}#{process.env.PWD}"
-    if pythonPath
-      process.env.PYTHONPATH = "#{process.env.PYTHONPATH}#{sep}#{pythonPath}"
+    pythonPath = if process.env['PYTHONPATH'] then process.env.PYTHONPATH else ''
+    pythonPath = pythonPath.split sep
+    pythonPath = pythonPath.filter(Boolean)
+
+    editor_path = path.dirname(@editor.getPath())
+    if editor_path and editor_path not in pythonPath
+      pythonPath.push editor_path
+
+    process_path = process.env.PWD
+    if process_path and process_path not in pythonPath
+      pythonPath.push process_path
+
+    process.env.PYTHONPATH = pythonPath.join sep
 
 
   initPylama: =>
