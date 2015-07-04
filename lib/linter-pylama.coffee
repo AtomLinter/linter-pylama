@@ -73,7 +73,7 @@ class LinterPylama
     do @subscriptions.dispose
 
 
-  lintOnFly: ->
+  isLintOnFly: ->
     return @lintOnFly_
 
 
@@ -122,7 +122,6 @@ class LinterPylama
       exec "#{@pylamaPath} --version", @executionCheckHandler
     else
       @pylamaPath = path.join path.dirname(__dirname), 'bin', 'pylama.py'
-
     do @initCmd
 
 
@@ -149,6 +148,7 @@ class LinterPylama
     if linters.length then cmd.push ['-l', do linters.join] else ['-l', 'none']
 
     @cmd = cmd
+
 
   lint: (textEditor) =>
     if not @cmd
