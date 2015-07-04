@@ -5,6 +5,7 @@ path = require 'path'
 {CompositeDisposable} = require 'atom'
 XRegExp = require('xregexp').XRegExp
 
+regex = XRegExp('(?<file>.+):(?<line>\\d+):(?<col>\\d+):\\s+((((?<error>E)|(?<warning>[CDFNW]))(?<code>\\d+)(:\\s+|\\s+))|(.*?))(?<message>.+)(\r)?\n')
 
 class LinterPylama
   @cmd: ''
@@ -174,7 +175,6 @@ class LinterPylama
       exit = (code) ->
         messages = []
         console.log code
-        regex = XRegExp('(?<file>.+):(?<line>\\d+):(?<col>\\d+):\\s+((((?<error>E)|(?<warning>[CDFNW]))(?<code>\\d+)(:\\s+|\\s+))|(.*?))(?<message>.+)(\r)?\n', '')
 
         XRegExp.forEach results.join(''), regex, (match) =>
           type = if match.error

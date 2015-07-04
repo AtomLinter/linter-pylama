@@ -67,6 +67,5 @@ module.exports =
       grammarScopes: ['source.python']
       scope: 'file'
       lint: @provider.lint
-      #lintOnFly: do @provider.lintOnFly
-      lintOnFly: false
+      lintOnFly: do @provider.lintOnFly
     }
