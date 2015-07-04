@@ -62,7 +62,6 @@ module.exports =
     console.log 'provideLinter'
     LinterPylama = require './linter-pylama.coffee'
     @provider = new LinterPylama()
-    console.log @provider.lintOnFly()
     return {
       grammarScopes: ['source.python']
       scope: 'file'

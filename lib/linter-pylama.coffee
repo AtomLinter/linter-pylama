@@ -150,10 +150,8 @@ class LinterPylama
     @cmd = cmd
 
 
-  lint: (textEditor) =>
-    if not @cmd
-      return
-    console.log 'lint'
+  lintOnFly: (textEditor) =>
+    console.log 'lintOnFly'
     return new Promise (resolve, reject) =>
       results = []
 
@@ -199,6 +197,64 @@ class LinterPylama
           dismissable: true
         handle()
         resolve []
+
+
+  lintOnSave: (textEditor) =>
+    console.log 'lintOnSave'
+    return new Promise (resolve, reject) =>
+      results = []
+
+      file = do textEditor.getPath
+      curDir = path.dirname file
+      console.log file
+      cmd = @cmd[0..]
+      cmd.push file
+      console.log cmd
+      command = cmd[0]
+      options = {cwd: curDir}
+      args = cmd.slice 1
+
+      stdout = (data) ->
+        console.log data
+        results.push data
+      stderr = (err) ->
+        console.log err
+      exit = (code) ->
+        messages = []
+        console.log code
+
+        XRegExp.forEach results.join(''), regex, (match) =>
+          type = if match.error
+            "Error"
+          else if match.warning
+            "Warning"
+          messages.push {
+            type: type or 'Warning'
+            text: match.message
+            filePath: if path.isAbsolute match.file then match.file else path.join curDir, match.file
+            range: [
+              [match.line - 1, 0]
+              [match.line - 1, 0]
+            ]
+          }
+        resolve(messages)
+
+      @lint_process = new BufferedProcess({command, args, options, stdout, stderr, exit})
+      @lint_process.onWillThrowError ({error, handle}) ->
+        atom.notifications.addError "Failed to run #{command}",
+          detail: "#{error.message}"
+          dismissable: true
+        handle()
+        resolve []
+
+
+  lint: (textEditor) =>
+    if not @cmd
+      return
+    if @lintOnFly_
+      return @lintOnFly textEditor
+    else
+      return @lintOnSave textEditor
 
 
 module.exports = LinterPylama
