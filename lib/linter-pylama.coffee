@@ -1,55 +1,79 @@
-linterPath = atom.packages.getLoadedPackage("linter").path
-Linter = require "#{linterPath}/lib/linter"
-
 fs = require "fs"
 {exec} = require 'child_process'
-{log, warn} = require "#{linterPath}/lib/utils"
 path = require 'path'
+{BufferedProcess} = require 'atom'
+{CompositeDisposable} = require 'atom'
+XRegExp = require('xregexp').XRegExp
 
 
-class LinterPylama extends Linter
-  regex: '(?<file>.+):(?<line>\\d+):(?<col>\\d+):\\s+((((?<error>E)|(?<warning>[CDFNW]))(?<code>\\d+)(:\\s+|\\s+))|(.*?))(?<message>.+)(\r)?\n'
-
-  linterName: 'pylama'
-  @syntax: 'source.python'
+class LinterPylama
   @cmd: ''
   @pylamaPath: ''
 
-  constructor: (@editor) ->
-    super @editor
-    @pylamaVersion_ = atom.config.observe 'linter-pylama.pylamaVersion', =>
+  constructor: ->
+    console.log 'Constructor'
+    @subscriptions = new CompositeDisposable
+    @subscriptions.add atom.config.observe 'linter-pylama.pylamaVersion',
+    (pylamaVersion) =>
+      @pylamaVersion_ = pylamaVersion
       do @initPylama
-    @executablePath_ = atom.config.observe 'linter-pylama.executablePath', =>
+
+    @subscriptions.add atom.config.observe 'linter-pylama.executablePath',
+    (executablePath) =>
+      @executablePath_ = executablePath
       do @initPylama
-    @ignoreErrorsAndWarnings_ = atom.config.observe 'linter-pylama.ignoreErrorsAndWarnings', =>
+
+    @subscriptions.add atom.config.observe 'linter-pylama.ignoreErrorsAndWarnings',
+    (ignoreErrorsAndWarnings) =>
+      @ignoreErrorsAndWarnings_ = ignoreErrorsAndWarnings
       do @initCmd
-    @skipFiles_ = atom.config.observe 'linter-pylama.skipFiles', =>
+
+    @subscriptions.add atom.config.observe 'linter-pylama.skipFiles',
+    (skipFiles) =>
+      @skipFiles_ = skipFiles
       do @initCmd
-    @useMcCabe_ = atom.config.observe 'linter-pylama.useMccabe', =>
+
+
+    @subscriptions.add atom.config.observe 'linter-pylama.useMccabe',
+    (useMcCabe) =>
+      @useMcCabe_ = useMcCabe
       do @initCmd
-    @usePEP8_ = atom.config.observe 'linter-pylama.usePep8', =>
+
+    @subscriptions.add atom.config.observe 'linter-pylama.usePep8',
+    (usePEP8) =>
+      @usePEP8_ = usePEP8
       do @initCmd
-    @usePEP257_ = atom.config.observe 'linter-pylama.usePep257', =>
+
+    @subscriptions.add atom.config.observe 'linter-pylama.usePep257',
+    (usePEP257) =>
+      @usePEP257_ = usePEP257
       do @initCmd
-    @usePyFlakes_ = atom.config.observe 'linter-pylama.usePyflakes', =>
+
+    @subscriptions.add atom.config.observe 'linter-pylama.usePyflakes',
+    (usePyFlakes) =>
+      @usePyFlakes_ = usePyFlakes
       do @initCmd
-    @usePyLint_ = atom.config.observe 'linter-pylama.usePylint', =>
+
+    @subscriptions.add atom.config.observe 'linter-pylama.usePylint',
+    (usePyLint) =>
+      @usePyLint_ = usePyLint
       do @initCmd
+
+    @subscriptions.add atom.config.observe 'linter-pylama.lintOnFly',
+    (lintOnFly) =>
+      @lintOnFly_ = lintOnFly
+
     do @initPythonPath
     do @initPylama
 
 
   destroy: ->
     super
-    do @pylamaVersion_.dispose
-    do @executablePath_.dispose
-    do @ignoreErrorsAndWarnings_.dispose
-    do @skipFiles_.dispose
-    do @useMcCabe_.dispose
-    do @usePEP8_.dispose
-    do @usePEP257_.dispose
-    do @usePyFlakes_.dispose
-    do @usePyLint_.dispose
+    do @subscriptions.dispose
+
+
+  lintOnFly: ->
+    return @lintOnFly_
 
 
   executionCheckHandler: (error, stdout, stderr) =>
@@ -125,14 +149,56 @@ class LinterPylama extends Linter
 
     @cmd = cmd
 
-  lintFile: (filePath, callback) =>
-    if @cmd
-      super filePath, callback
+  lint: (textEditor) =>
+    if not @cmd
+      return
+    console.log 'lint'
+    return new Promise (resolve, reject) =>
+      results = []
 
-  formatMessage: (match) ->
-    type = if match.error then match.error else match.warning
-    type = if type then type else ''
-    code = if match.code then match.code else ''
-    "#{type}#{code} #{match.message}"
+      file = do textEditor.getPath
+      curDir = path.dirname file
+      console.log file
+      cmd = @cmd[0..]
+      cmd.push file
+      console.log cmd
+      command = cmd[0]
+      options = {cwd: curDir}
+      args = cmd.slice 1
+
+      stdout = (data) ->
+        console.log data
+        results.push data
+      stderr = (err) ->
+        console.log err
+      exit = (code) ->
+        messages = []
+        console.log code
+        regex = XRegExp('(?<file>.+):(?<line>\\d+):(?<col>\\d+):\\s+((((?<error>E)|(?<warning>[CDFNW]))(?<code>\\d+)(:\\s+|\\s+))|(.*?))(?<message>.+)(\r)?\n', '')
+
+        XRegExp.forEach results.join(''), regex, (match) =>
+          type = if match.error
+            "Error"
+          else if match.warning
+            "Warning"
+          messages.push {
+            type: type or 'Warning'
+            text: match.message
+            filePath: if path.isAbsolute match.file then match.file else path.join curDir, match.file
+            range: [
+              [match.line - 1, 0]
+              [match.line - 1, 0]
+            ]
+          }
+        resolve(messages)
+
+      @lint_process = new BufferedProcess({command, args, options, stdout, stderr, exit})
+      @lint_process.onWillThrowError ({error, handle}) ->
+        atom.notifications.addError "Failed to run #{command}",
+          detail: "#{error.message}"
+          dismissable: true
+        handle()
+        resolve []
+
 
 module.exports = LinterPylama

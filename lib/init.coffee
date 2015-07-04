@@ -5,6 +5,9 @@ module.exports =
       default: 'pylama'
       description: 'Excutable path for external Pylama.
       Example: /usr/local/bin/pylama'
+    lintOnFly:
+      type: 'boolean'
+      default: true
     ignoreErrorsAndWarnings:
       type: 'string'
       default: ''
@@ -47,5 +50,23 @@ module.exports =
       specify executable path).'
 
   activate: ->
+    if not atom.packages.getLoadedPackage 'linter'
+      atom.notifications.addError 'Linter package not found',
+      detail: '[linter-pylama] `linter` package not found. \
+      Please install https://github.com/AtomLinter/Linter'
+      return
     console.log 'Linter-Pylama: package loaded,
                  ready to get initialized by AtomLinter.'
+
+  provideLinter: ->
+    console.log 'provideLinter'
+    LinterPylama = require './linter-pylama.coffee'
+    @provider = new LinterPylama()
+    console.log @provider.lintOnFly()
+    return {
+      grammarScopes: ['source.python']
+      scope: 'file'
+      lint: @provider.lint
+      #lintOnFly: do @provider.lintOnFly
+      lintOnFly: false
+    }
