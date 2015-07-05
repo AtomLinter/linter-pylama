@@ -130,7 +130,6 @@ class LinterPylama
       @cmd = ''
       return
     cmd = [@pylamaPath]
-    cmd.push '-F'
 
     ignoreEW = atom.config.get 'linter-pylama.ignoreErrorsAndWarnings'
     if ignoreEW then cmd.push ['-i', ignoreEW]
