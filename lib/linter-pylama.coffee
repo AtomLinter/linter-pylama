@@ -205,16 +205,16 @@ class LinterPylama
         suffix: "-#{path.basename do textEditor.getPath}"
       }
 
-      temp.open(tmpOptions, (err, info) =>
+      temp.open(tmpOptions, (err, tmpInfo) =>
         return reject(err) if err
 
-        fs.write(info.fd, textEditor.getText())
-        fs.close(info.fd, (err) =>
+        fs.write(tmpInfo.fd, do textEditor.getText)
+        fs.close(tmpInfo.fd, (err) =>
           return reject(err) if err
 
-          lintInfo = @makeLintInfo info.path, do textEditor.getPath
+          lintInfo = @makeLintInfo tmpInfo.path, do textEditor.getPath
           @lintFile lintInfo, (results) ->
-            fs.unlink(info.path)
+            fs.unlink(tmpInfo.path)
             resolve(results)
         )
       )
