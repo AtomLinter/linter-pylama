@@ -161,7 +161,7 @@ class LinterPylama
       options: {cwd: path.dirname originFileName}
 
 
-  lintFile: (lintInfo, callback) ->
+  lintFile: (lintInfo, textEditor, callback) ->
     results = []
     stdout = (data) ->
       console.log data if do atom.inDevMode
@@ -175,13 +175,15 @@ class LinterPylama
           "Error"
         else if match.warning
           "Warning"
+        line = textEditor.buffer.lines[match.line-1]
+        colEnd = line.length if line
         messages.push {
           type: type or 'Warning'
           text: match.message
           filePath: lintInfo.fileName
           range: [
             [match.line - 1, 0]
-            [match.line - 1, 0]
+            [match.line - 1, colEnd]
           ]
         }
       callback(messages)
@@ -214,7 +216,7 @@ class LinterPylama
         fs.write tmpInfo.fd, do textEditor.getText, (err) =>
           return reject(err) if err
           lintInfo = @makeLintInfo tmpInfo.path, filePath
-          @lintFile lintInfo, (results) ->
+          @lintFile lintInfo, textEditor, (results) ->
             fs.unlink tmpInfo.path
             resolve results
 
@@ -222,7 +224,7 @@ class LinterPylama
   lintOnSave: (textEditor) =>
     return new Promise (resolve, reject) =>
       lintInfo = @makeLintInfo do textEditor.getPath
-      @lintFile lintInfo, (results) ->
+      @lintFile lintInfo, textEditor, (results) ->
         resolve(results)
 
 
