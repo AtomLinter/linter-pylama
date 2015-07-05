@@ -205,24 +205,18 @@ class LinterPylama
   lintOnFly: (textEditor) =>
     return new Promise (resolve, reject) =>
       filePath = do textEditor.getPath
-      tmpOptions = {
+      tmpOptions =
         prefix: 'AtomLinter-'
         suffix: "-#{path.basename filePath}"
-      }
 
-      temp.open(tmpOptions, (err, tmpInfo) =>
+      temp.open tmpOptions, (err, tmpInfo) =>
         return reject(err) if err
-
-        fs.write(tmpInfo.fd, do textEditor.getText)
-        fs.close(tmpInfo.fd, (err) =>
+        fs.write tmpInfo.fd, do textEditor.getText, (err) =>
           return reject(err) if err
-
           lintInfo = @makeLintInfo tmpInfo.path, filePath
           @lintFile lintInfo, (results) ->
-            fs.unlink(tmpInfo.path)
-            resolve(results)
-        )
-      )
+            fs.unlink tmpInfo.path
+            resolve results
 
 
   lintOnSave: (textEditor) =>
