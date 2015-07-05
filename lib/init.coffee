@@ -8,6 +8,7 @@ module.exports =
     lintOnFly:
       type: 'boolean'
       default: true
+      descrition: "Enable linting on the fly. Need to restart Atom."
     ignoreErrorsAndWarnings:
       type: 'string'
       default: ''
@@ -59,7 +60,6 @@ module.exports =
                  ready to get initialized by AtomLinter.'
 
   provideLinter: ->
-    console.log 'provideLinter'
     LinterPylama = require './linter-pylama.coffee'
     @provider = new LinterPylama()
     return {
