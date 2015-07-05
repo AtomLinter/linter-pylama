@@ -186,10 +186,14 @@ class LinterPylama
         }
       callback(messages)
 
-    command = lintInfo.command
-    args = lintInfo.args
-    options = lintInfo.options
-    @lint_process = new BufferedProcess({command, args, options, stdout, stderr, exit})
+    @lint_process = new BufferedProcess(
+      command: lintInfo.command
+      args: lintInfo.args
+      options: lintInfo.options
+      stdout: stdout
+      stderr: stderr
+      exit: exit
+    )
     @lint_process.onWillThrowError ({error, handle}) ->
       atom.notifications.addError "Failed to run #{command}",
         detail: "#{error.message}"
@@ -202,7 +206,7 @@ class LinterPylama
     return new Promise (resolve, reject) =>
       filePath = do textEditor.getPath
       tmpOptions = {
-        prefix: 'AtomLinter'
+        prefix: 'AtomLinter-'
         suffix: "-#{path.basename filePath}"
       }
 
