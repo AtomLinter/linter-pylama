@@ -150,6 +150,19 @@ class LinterPylama
 
     @cmd = cmd
 
+
+  makeLintInfo: (fileName, originFileName) =>
+    if not originFileName
+      originFileName = fileName
+    cmd = @cmd[0..]
+    cmd.push fileName
+    info =
+      fileName: originFileName
+      command: cmd[0]
+      args: cmd.slice 1
+      options: {cwd: path.dirname originFileName}
+
+
   lintFile: (lintInfo, callback) ->
     console.log 'lintFile'
     results = []
@@ -168,7 +181,7 @@ class LinterPylama
         messages.push {
           type: type or 'Warning'
           text: match.message
-          filePath: lintInfo.origFileName
+          filePath: lintInfo.fileName
           range: [
             [match.line - 1, 0]
             [match.line - 1, 0]
@@ -185,18 +198,15 @@ class LinterPylama
         detail: "#{error.message}"
         dismissable: true
       handle()
-      callback([])
+      callback []
 
 
   lintOnFly: (textEditor) =>
     console.log 'lintOnFly'
     return new Promise (resolve, reject) =>
-      results = []
-
-      file = do textEditor.getPath
       tmpOptions = {
         prefix: 'AtomLinter'
-        suffix: "_#{path.basename file}"
+        suffix: "_#{path.basename do textEditor.getPath}"
       }
 
       temp.open(tmpOptions, (err, info) =>
@@ -206,21 +216,7 @@ class LinterPylama
         fs.close(info.fd, (err) =>
           return reject(err) if err
 
-          curDir = path.dirname file
-          cmd = @cmd[0..]
-          console.log cmd
-          cmd.push info.path
-          command = cmd[0]
-          options = {cwd: curDir}
-          args = cmd.slice 1
-          console.log cmd
-
-          lintInfo =
-            command: command
-            args: args
-            options: options
-            curDir: curDir
-            origFileName: file
+          lintInfo = @makeLintInfo info.path, do textEditor.getPath
           @lintFile lintInfo, (results) ->
             fs.unlink(info.path)
             resolve(results)
@@ -231,25 +227,7 @@ class LinterPylama
   lintOnSave: (textEditor) =>
     console.log 'lintOnSave'
     return new Promise (resolve, reject) =>
-      results = []
-
-      file = do textEditor.getPath
-      curDir = path.dirname file
-      cmd = @cmd[0..]
-      cmd.push file
-      console.log cmd
-      command = cmd[0]
-      options = {cwd: curDir}
-      args = cmd.slice 1
-
-
-      lintInfo =
-        command: command
-        args: args
-        options: options
-        curDir: curDir
-        origFileName: file
-
+      lintInfo = @makeLintInfo do textEditor.getPath
       @lintFile lintInfo, (results) ->
         resolve(results)
 
