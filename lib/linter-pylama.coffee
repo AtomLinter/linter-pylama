@@ -177,9 +177,11 @@ class LinterPylama
           "Warning"
         line = textEditor.buffer.lines[match.line-1]
         colEnd = line.length if line
+        code = match.error or match.warning or ''
+        code = "#{code}#{match.code} " if code
         messages.push {
           type: type or 'Warning'
-          text: match.message
+          text: code + match.message
           filePath: lintInfo.fileName
           range: [
             [match.line - 1, 0]
