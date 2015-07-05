@@ -229,7 +229,7 @@ class LinterPylama
 
   lint: (textEditor) =>
     if not @cmd
-      return
+      return []
     if @lintOnFly_
       return @lintOnFly textEditor
     else
