@@ -193,6 +193,7 @@ class LinterPylama
     return new Promise (resolve, reject) =>
       results = []
 
+      file = do textEditor.getPath
       tmpOptions = {
         prefix: 'AtomLinter'
         suffix: "_#{path.basename file}"
@@ -205,7 +206,6 @@ class LinterPylama
         fs.close(info.fd, (err) =>
           return reject(err) if err
 
-          file = do textEditor.getPath
           curDir = path.dirname file
           cmd = @cmd[0..]
           console.log cmd
