@@ -187,30 +187,45 @@ class LinterPylama
       handle()
       callback([])
 
+
   lintOnFly: (textEditor) =>
     console.log 'lintOnFly'
     return new Promise (resolve, reject) =>
       results = []
 
-      file = do textEditor.getPath
-      curDir = path.dirname file
-      console.log file
-      cmd = @cmd[0..]
-      cmd.push file
-      command = cmd[0]
-      options = {cwd: curDir}
-      args = cmd.slice 1
+      tmpOptions = {
+        prefix: 'AtomLinter'
+        suffix: "_#{path.basename file}"
+      }
 
-      lintInfo =
-        command: command
-        args: args
-        options: options
-        curDir: curDir
-        origFileName: file
+      temp.open(tmpOptions, (err, info) =>
+        return reject(err) if err
 
-      @lintFile lintInfo, (results) ->
-        resolve(results)
+        fs.write(info.fd, textEditor.getText())
+        fs.close(info.fd, (err) =>
+          return reject(err) if err
 
+          file = do textEditor.getPath
+          curDir = path.dirname file
+          cmd = @cmd[0..]
+          console.log cmd
+          cmd.push info.path
+          command = cmd[0]
+          options = {cwd: curDir}
+          args = cmd.slice 1
+          console.log cmd
+
+          lintInfo =
+            command: command
+            args: args
+            options: options
+            curDir: curDir
+            origFileName: file
+          @lintFile lintInfo, (results) ->
+            fs.unlink(info.path)
+            resolve(results)
+        )
+      )
 
 
   lintOnSave: (textEditor) =>
@@ -220,7 +235,6 @@ class LinterPylama
 
       file = do textEditor.getPath
       curDir = path.dirname file
-      console.log file
       cmd = @cmd[0..]
       cmd.push file
       console.log cmd
@@ -236,8 +250,8 @@ class LinterPylama
         curDir: curDir
         origFileName: file
 
-    @lintFile lintInfo, (results) ->
-      resolve(results)
+      @lintFile lintInfo, (results) ->
+        resolve(results)
 
 
   lint: (textEditor) =>
