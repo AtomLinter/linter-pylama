@@ -62,7 +62,6 @@ class LinterPylama
     (lintOnFly) =>
       @lintOnFly_ = lintOnFly
 
-    do @initPythonPath
     do @initPylama
 
 
@@ -74,14 +73,14 @@ class LinterPylama
     return @lintOnFly_
 
 
-  initPythonPath: =>
+  initPythonPath: (cwd) ->
     sep = path.delimiter
     pythonPath = if process.env['PYTHONPATH'] then process.env.PYTHONPATH else ''
     pythonPath = pythonPath.split sep
     pythonPath = pythonPath.filter(Boolean)
 
-    if @cwd and @cwd not in pythonPath
-      pythonPath.push @cwd
+    if cwd and cwd not in pythonPath
+      pythonPath.push cwd
 
     process_path = process.env.PWD
     if process_path and process_path not in pythonPath
@@ -216,6 +215,7 @@ class LinterPylama
   lint: (textEditor) =>
     if not @cmd
       return []
+    @initPythonPath path.dirname do textEditor.getPath
     if @lintOnFly_
       return @lintOnFly textEditor
     else
