@@ -69,7 +69,6 @@ class LinterPylama
 
 
   destroy: ->
-    super
     do @subscriptions.dispose
 
 
