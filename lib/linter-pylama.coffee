@@ -13,7 +13,6 @@ class LinterPylama
   @pylamaPath: ''
 
   constructor: ->
-    console.log 'Constructor'
     @subscriptions = new CompositeDisposable
     @subscriptions.add atom.config.observe 'linter-pylama.pylamaVersion',
     (pylamaVersion) =>
@@ -156,6 +155,7 @@ class LinterPylama
       originFileName = fileName
     cmd = @cmd[0..]
     cmd.push fileName
+    console.log cmd if do atom.inDevMode
     info =
       fileName: originFileName
       command: cmd[0]
@@ -164,13 +164,12 @@ class LinterPylama
 
 
   lintFile: (lintInfo, callback) ->
-    console.log 'lintFile'
     results = []
     stdout = (data) ->
-      console.log data
+      console.log data if do atom.inDevMode
       results.push data
     stderr = (err) ->
-      console.log err
+      console.log err if do atom.inDevMode
     exit = (code) ->
       messages = []
       XRegExp.forEach results.join(''), regex, (match) =>
@@ -202,7 +201,6 @@ class LinterPylama
 
 
   lintOnFly: (textEditor) =>
-    console.log 'lintOnFly'
     return new Promise (resolve, reject) =>
       tmpOptions = {
         prefix: 'AtomLinter'
@@ -225,7 +223,6 @@ class LinterPylama
 
 
   lintOnSave: (textEditor) =>
-    console.log 'lintOnSave'
     return new Promise (resolve, reject) =>
       lintInfo = @makeLintInfo do textEditor.getPath
       @lintFile lintInfo, (results) ->
