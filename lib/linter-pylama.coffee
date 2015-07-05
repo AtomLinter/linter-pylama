@@ -186,7 +186,7 @@ class LinterPylama
         }
       callback(messages)
 
-    @lint_process = new BufferedProcess(
+    lint_process = new BufferedProcess(
       command: lintInfo.command
       args: lintInfo.args
       options: lintInfo.options
@@ -194,7 +194,7 @@ class LinterPylama
       stderr: stderr
       exit: exit
     )
-    @lint_process.onWillThrowError ({error, handle}) ->
+    lint_process.onWillThrowError ({error, handle}) ->
       atom.notifications.addError "Failed to run #{command}",
         detail: "#{error.message}"
         dismissable: true
