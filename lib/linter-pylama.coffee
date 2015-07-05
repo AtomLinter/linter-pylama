@@ -1,5 +1,4 @@
 fs = require "fs"
-{exec} = require 'child_process'
 path = require 'path'
 temp = require 'temp'
 {BufferedProcess} = require 'atom'
@@ -33,7 +32,6 @@ class LinterPylama
     (skipFiles) =>
       @skipFiles_ = skipFiles
       do @initCmd
-
 
     @subscriptions.add atom.config.observe 'linter-pylama.useMccabe',
     (useMcCabe) =>
@@ -76,26 +74,6 @@ class LinterPylama
     return @lintOnFly_
 
 
-  executionCheckHandler: (error, stdout, stderr) =>
-    pylamaVersion = ''
-    versionRegEx = /pylama(.exe)? ([\d\.]+)/
-    if versionRegEx.test(stderr)
-      pylamaVersion = versionRegEx.exec(stderr)[0]
-    else if versionRegEx.test(stdout)
-      pylamaVersion = versionRegEx.exec(stdout)[0]
-    if not pylamaVersion
-      result = if error? then '#' + error.code + ': ' else ''
-      result += 'stdout: ' + stdout if stdout.length > 0
-      result += 'stderr: ' + stderr if stderr.length > 0
-      result = result.replace(/\r\n|\n|\r/, '')
-      console.error "Linter-Pylama: \"#{@pylamaPath}\" \
-      was not executable: \"#{result}\". \
-      Please, check executable path in the linter settings."
-      @pylamaPath = ''
-      return
-    log "Linter-Pylama: found " + pylamaVersion
-
-
   initPythonPath: =>
     sep = path.delimiter
     pythonPath = if process.env['PYTHONPATH'] then process.env.PYTHONPATH else ''
@@ -117,8 +95,13 @@ class LinterPylama
     pylamaPath = atom.config.get 'linter-pylama.executablePath'
 
     if pylamaVersion is 'external' and pylamaPath isnt @pylamaPath
-      @pylamaPath = pylamaPath
-      exec "#{@pylamaPath} --version", @executionCheckHandler
+      if not do fs.statSync(pylamaPath).isFile
+        atom.notifications.addError 'Pylama executable not found',
+        detail: "[linter-pylama] `#{pylamaPath}` executable file not found. \
+        Please set the correct path to `pylama`."
+        @pylamaPath = ''
+      else
+        @pylamaPath = pylamaPath
     else
       @pylamaPath = path.join path.dirname(__dirname), 'bin', 'pylama.py'
     do @initCmd
