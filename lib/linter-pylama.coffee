@@ -143,7 +143,7 @@ class LinterPylama
     usePEP257 = if atom.config.get 'linter-pylama.usePep257' then 'pep257' else ''
     usePyFlakes = if atom.config.get 'linter-pylama.usePyflakes' then 'pyflakes' else ''
 
-    linters = [usePyLint, useMcCabe, usePEP8, usePEP257, usePyFlakes].filter (e) -> e isnt ''
+    linters = [usePyFlakes, usePyLint, useMcCabe, usePEP8, usePEP257].filter (e) -> e isnt ''
     if linters.length then cmd.push ['-l', do linters.join] else ['-l', 'none']
 
     @cmd = cmd
