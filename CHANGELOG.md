@@ -1,3 +1,6 @@
+# 0.1.0
+* Migrate to Linter-plus API (close #5 and close #7).
+
 # 0.0.20
 * Temporary fix for Linter 1.0.1.
 * Use python from env.
