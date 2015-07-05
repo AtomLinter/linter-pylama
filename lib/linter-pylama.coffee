@@ -203,7 +203,7 @@ class LinterPylama
     return new Promise (resolve, reject) =>
       tmpOptions = {
         prefix: 'AtomLinter'
-        suffix: "_#{path.basename do textEditor.getPath}"
+        suffix: "-#{path.basename do textEditor.getPath}"
       }
 
       temp.open(tmpOptions, (err, info) =>
