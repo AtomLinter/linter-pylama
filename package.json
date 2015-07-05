@@ -7,12 +7,12 @@
   "repository": "https://github.com/AtomLinter/linter-pylama",
   "license": "MIT",
   "engines": {
-    "atom": ">0.50.0"
+    "atom": ">=0.174.0 <2.0.0"
   },
   "providedServices": {
     "linter": {
       "versions": {
-        "1.0.0": "provideLinter"
+        "^1.0.0": "provideLinter"
       }
     }
   },
