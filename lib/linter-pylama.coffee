@@ -1,6 +1,7 @@
 fs = require "fs"
 {exec} = require 'child_process'
 path = require 'path'
+temp = require 'temp'
 {BufferedProcess} = require 'atom'
 {CompositeDisposable} = require 'atom'
 XRegExp = require('xregexp').XRegExp
@@ -149,6 +150,42 @@ class LinterPylama
 
     @cmd = cmd
 
+  lintFile: (lintInfo, callback) ->
+    console.log 'lintFile'
+    results = []
+    stdout = (data) ->
+      console.log data
+      results.push data
+    stderr = (err) ->
+      console.log err
+    exit = (code) ->
+      messages = []
+      XRegExp.forEach results.join(''), regex, (match) =>
+        type = if match.error
+          "Error"
+        else if match.warning
+          "Warning"
+        messages.push {
+          type: type or 'Warning'
+          text: match.message
+          filePath: lintInfo.origFileName
+          range: [
+            [match.line - 1, 0]
+            [match.line - 1, 0]
+          ]
+        }
+      callback(messages)
+
+    command = lintInfo.command
+    args = lintInfo.args
+    options = lintInfo.options
+    @lint_process = new BufferedProcess({command, args, options, stdout, stderr, exit})
+    @lint_process.onWillThrowError ({error, handle}) ->
+      atom.notifications.addError "Failed to run #{command}",
+        detail: "#{error.message}"
+        dismissable: true
+      handle()
+      callback([])
 
   lintOnFly: (textEditor) =>
     console.log 'lintOnFly'
@@ -160,43 +197,20 @@ class LinterPylama
       console.log file
       cmd = @cmd[0..]
       cmd.push file
-      console.log cmd
       command = cmd[0]
       options = {cwd: curDir}
       args = cmd.slice 1
 
-      stdout = (data) ->
-        console.log data
-        results.push data
-      stderr = (err) ->
-        console.log err
-      exit = (code) ->
-        messages = []
-        console.log code
+      lintInfo =
+        command: command
+        args: args
+        options: options
+        curDir: curDir
+        origFileName: file
 
-        XRegExp.forEach results.join(''), regex, (match) =>
-          type = if match.error
-            "Error"
-          else if match.warning
-            "Warning"
-          messages.push {
-            type: type or 'Warning'
-            text: match.message
-            filePath: if path.isAbsolute match.file then match.file else path.join curDir, match.file
-            range: [
-              [match.line - 1, 0]
-              [match.line - 1, 0]
-            ]
-          }
-        resolve(messages)
+      @lintFile lintInfo, (results) ->
+        resolve(results)
 
-      @lint_process = new BufferedProcess({command, args, options, stdout, stderr, exit})
-      @lint_process.onWillThrowError ({error, handle}) ->
-        atom.notifications.addError "Failed to run #{command}",
-          detail: "#{error.message}"
-          dismissable: true
-        handle()
-        resolve []
 
 
   lintOnSave: (textEditor) =>
@@ -214,38 +228,16 @@ class LinterPylama
       options = {cwd: curDir}
       args = cmd.slice 1
 
-      stdout = (data) ->
-        console.log data
-        results.push data
-      stderr = (err) ->
-        console.log err
-      exit = (code) ->
-        messages = []
-        console.log code
 
-        XRegExp.forEach results.join(''), regex, (match) =>
-          type = if match.error
-            "Error"
-          else if match.warning
-            "Warning"
-          messages.push {
-            type: type or 'Warning'
-            text: match.message
-            filePath: if path.isAbsolute match.file then match.file else path.join curDir, match.file
-            range: [
-              [match.line - 1, 0]
-              [match.line - 1, 0]
-            ]
-          }
-        resolve(messages)
+      lintInfo =
+        command: command
+        args: args
+        options: options
+        curDir: curDir
+        origFileName: file
 
-      @lint_process = new BufferedProcess({command, args, options, stdout, stderr, exit})
-      @lint_process.onWillThrowError ({error, handle}) ->
-        atom.notifications.addError "Failed to run #{command}",
-          detail: "#{error.message}"
-          dismissable: true
-        handle()
-        resolve []
+    @lintFile lintInfo, (results) ->
+      resolve(results)
 
 
   lint: (textEditor) =>
