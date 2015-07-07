@@ -94,7 +94,16 @@ class LinterPylama
     pylamaPath = atom.config.get 'linter-pylama.executablePath'
 
     if pylamaVersion is 'external' and pylamaPath isnt @pylamaPath
-      if not do fs.statSync(pylamaPath).isFile
+      if /^(pylama|pylama\.exe)$/.test pylamaPath
+        process.env.PATH.split(path.delimiter).forEach (dir) =>
+          tmp = path.join dir, pylamaPath
+          if fs.existsSync tmp
+            pylamaPath = tmp
+
+      if not path.isAbsolute pylamaPath
+        pylamaPath = path.resolve pylamaPath
+
+      if not fs.existsSync pylamaPath or not do fs.statSync(pylamaPath).isFile
         atom.notifications.addError 'Pylama executable not found',
         detail: "[linter-pylama] `#{pylamaPath}` executable file not found. \
         Please set the correct path to `pylama`."
