@@ -1,3 +1,6 @@
+# 0.1.1
+* Fix #8
+
 # 0.1.0
 * Migrate to Linter-plus API (close #5 and close #7).
 
