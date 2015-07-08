@@ -1,5 +1,5 @@
 # 0.1.2
-* Remove deprecated 'linter-package' form the package.json
+* Remove deprecated 'linter-package' from the package.json
 
 # 0.1.1
 * Fix #8
