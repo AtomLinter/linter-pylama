@@ -74,9 +74,8 @@ class LinterPylama
 
 
   initPythonPath: (cwd) ->
-    sep = path.delimiter
     pythonPath = if process.env['PYTHONPATH'] then process.env.PYTHONPATH else ''
-    pythonPath = pythonPath.split sep
+    pythonPath = pythonPath.split path.delimiter
     pythonPath = pythonPath.filter(Boolean)
 
     if cwd and cwd not in pythonPath
@@ -86,7 +85,7 @@ class LinterPylama
     if process_path and process_path not in pythonPath
       pythonPath.push process_path
 
-    process.env.PYTHONPATH = pythonPath.join sep
+    process.env.PYTHONPATH = pythonPath.join path.delimiter
 
 
   initPylama: =>
