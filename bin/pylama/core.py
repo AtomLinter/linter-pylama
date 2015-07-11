@@ -111,8 +111,8 @@ def prepare_params(modeline, fileconfig, options):
     """
     params = dict(skip=False, ignore=[], select=[], linters=[])
     if options:
-        params['ignore'] = options.ignore[:]
-        params['select'] = options.select[:]
+        params['ignore'] = list(options.ignore)
+        params['select'] = list(options.select)
 
     for config in filter(None, [modeline, fileconfig]):
         for key in ('ignore', 'select', 'linters'):
@@ -194,4 +194,4 @@ class CodeContext(object):
         if t and LOGGER.level == logging.DEBUG:
             LOGGER.debug(traceback)
 
-# pylama:ignore=R0912
+# pylama:ignore=R0912,D210,F0001
