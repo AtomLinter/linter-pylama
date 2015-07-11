@@ -119,13 +119,13 @@ def register_module_extender(manager, module_name, get_extension_mod):
 
 
 # load brain plugins
-# from os import listdir
-# from os.path import join, dirname
-# BRAIN_MODULES_DIR = join(dirname(__file__), 'brain')
-# if BRAIN_MODULES_DIR not in sys.path:
-    # # add it to the end of the list so user path take precedence
-    # sys.path.append(BRAIN_MODULES_DIR)
-# # load modules in this directory
-# for module in listdir(BRAIN_MODULES_DIR):
-    # if module.endswith('.py'):
-        # __import__(module[:-3])
+from os import listdir
+from os.path import join, dirname
+BRAIN_MODULES_DIR = join(dirname(__file__), 'brain')
+if BRAIN_MODULES_DIR not in sys.path:
+    # add it to the end of the list so user path take precedence
+    sys.path.append(BRAIN_MODULES_DIR)
+# load modules in this directory
+for module in listdir(BRAIN_MODULES_DIR):
+    if module.endswith('.py'):
+        __import__(module[:-3])
