@@ -1,3 +1,6 @@
+# 0.1.4
+* Force linting files without extensions. Close #10
+
 # 0.1.3
 * Update pylama version to 6.3.4 (except PEP257 linter)
 * Update PyLint version to 1.4.4
