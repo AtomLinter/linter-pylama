@@ -422,7 +422,7 @@ class Parser(object):
                         if parenthesis_level == 0:
                             break
                 self.stream.move()
-        if self.current.kind != tk.OP or self.current.value != ':':
+        if self.current.kind != tk.OP or self.current.value not in (':', ')'):
             self.leapfrog(tk.OP, value=":")
         else:
             self.consume(tk.OP)
