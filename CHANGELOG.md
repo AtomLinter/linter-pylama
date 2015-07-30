@@ -1,3 +1,6 @@
+# 0.1.5
+* Update pep257 to v0.6.0
+
 # 0.1.4
 * Force linting files without extensions. Close #10
 
