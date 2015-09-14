@@ -56,11 +56,7 @@ module.exports =
       specify executable path).'
 
   activate: ->
-    if not atom.packages.getLoadedPackage 'linter'
-      atom.notifications.addError 'Linter package not found',
-      detail: '[linter-pylama] `linter` package not found. \
-      Please install https://github.com/AtomLinter/Linter'
-      return
+    require('atom-package-deps').install 'linter-pylama'
     console.log 'Linter-Pylama: package loaded,
                  ready to get initialized by AtomLinter.'
 
