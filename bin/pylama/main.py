@@ -21,12 +21,13 @@ def check_path(options, rootdir=None, candidates=None, code=None):
     """
     if not candidates:
         candidates = []
-        path = op.abspath(options.path)
-        if op.isdir(options.path):
-            for root, _, files in walk(options.path):
-                candidates += [op.relpath(op.join(root, f), CURDIR) for f in files]
-        else:
-            candidates.append(options.path)
+        for path_ in options.paths:
+            path = op.abspath(path_)
+            if op.isdir(path):
+                for root, _, files in walk(path):
+                    candidates += [op.relpath(op.join(root, f), CURDIR) for f in files]
+            else:
+                candidates.append(path)
 
     if rootdir is None:
         rootdir = path if op.isdir(path) else op.dirname(path)
@@ -34,7 +35,7 @@ def check_path(options, rootdir=None, candidates=None, code=None):
     paths = []
     for path in candidates:
 
-        if (not options.force and not any(l.allow(path) for _, l in options.linters)):
+        if not options.force and not any(l.allow(path) for _, l in options.linters):
             continue
 
         if not op.exists(path):
@@ -82,11 +83,14 @@ def shell(args=None, error=True):
 def process_paths(options, candidates=None, error=True):
     """Process files and log errors."""
     errors = check_path(options, rootdir=CURDIR, candidates=candidates)
+
     pattern = "%(filename)s:%(lnum)s:%(col)s: %(text)s"
     if options.format == 'pylint':
         pattern = "%(filename)s:%(lnum)s: [%(type)s] %(text)s"
 
     for er in errors:
+        if options.abspath:
+            er._info['filename'] = op.abspath(er.filename)
         LOGGER.warning(pattern, er._info)
 
     if error:

@@ -1,6 +1,8 @@
-""" Check PEP8. """
-from .. import Linter as BaseLinter
-from .pep8 import BaseReport, StyleGuide, get_parser
+"""PEP8 support."""
+from pep8 import BaseReport, StyleGuide, get_parser
+
+from pylama.lint import Linter as Abstract
+
 
 try:
     from StringIO import StringIO
@@ -8,16 +10,15 @@ except ImportError:
     from io import StringIO
 
 
-class Linter(BaseLinter):
+class Linter(Abstract):
 
-    """ PEP8 code check. """
+    """PEP8 runner."""
 
     @staticmethod
     def run(path, code=None, params=None, **meta):
-        """ PEP8 code checking.
+        """Check code with PEP8.
 
         :return list: List of errors.
-
         """
         parser = get_parser()
         for option in parser.option_list:
@@ -38,13 +39,13 @@ class _PEP8Report(BaseReport):
         self.errors = []
 
     def init_file(self, filename, lines, expected, line_offset):
-        """ Prepare storage for errors. """
+        """Prepare storage for errors."""
         super(_PEP8Report, self).init_file(
             filename, lines, expected, line_offset)
         self.errors = []
 
     def error(self, line_number, offset, text, check):
-        """ Save errors. """
+        """Save errors."""
         code = super(_PEP8Report, self).error(
             line_number, offset, text, check)
 
@@ -57,7 +58,7 @@ class _PEP8Report(BaseReport):
             ))
 
     def get_file_results(self):
-        """ Get errors.
+        """Get errors.
 
         :return list: List of errors.
 

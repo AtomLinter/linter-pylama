@@ -4,7 +4,6 @@
 import os
 import re
 import sys
-import six
 
 from pylama.main import shell
 
@@ -13,6 +12,7 @@ if __name__ == '__main__':
         virtual_env = os.environ.get('VIRTUAL_ENV', '')
         activate_this = os.path.join(virtual_env, 'bin', 'activate_this.py')
         with open(activate_this) as f:
+            from deps import six
             six.exec_(f.read(), dict(__file__=activate_this))
     except IOError:
         pass

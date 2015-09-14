@@ -71,8 +71,8 @@ def parse_linters(linters):
 
 PARSER = ArgumentParser(description="Code audit tool for python.")
 PARSER.add_argument(
-    "path", nargs='?', default=_Default(CURDIR),
-    help="Path on file or directory for code check.")
+    "paths", nargs='*', default=_Default([CURDIR]),
+    help="Paths to files or directories for code check.")
 
 PARSER.add_argument(
     "--verbose", "-v", action='store_true', help="Verbose mode.")
@@ -125,6 +125,10 @@ PARSER.add_argument(
     "--force", "-F", action='store_true', default=_Default(False),
     help="Force code checking (if linter doesnt allow)")
 
+PARSER.add_argument(
+    "--abspath", "-a", action='store_true', default=_Default(False),
+    help="Use absolute paths in output.")
+
 
 ACTIONS = dict((a.dest, a) for a in PARSER._actions)
 
@@ -156,6 +160,8 @@ def parse_options(args=None, config=True, rootdir=CURDIR, **overrides): # noqa
             LOGGER.info('Find option %s (%s)', k, v)
             passed_value = getattr(options, k, _Default())
             if isinstance(passed_value, _Default):
+                if k == 'paths':
+                    v = v.split()
                 setattr(options, k, _Default(v))
 
         # Parse file related options
