@@ -1,3 +1,6 @@
+# 0.1.6
+* Used atom-package-deps for deps. Close #15
+
 # 0.1.5
 * Update pep257 to v0.6.0
 
