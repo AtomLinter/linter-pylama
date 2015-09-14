@@ -8,7 +8,6 @@ XRegExp = require('xregexp').XRegExp
 regex = XRegExp('(?<file>.+):(?<line>\\d+):(?<col>\\d+):\\s+((((?<error>E)|(?<warning>[CDFNW]))(?<code>\\d+)(:\\s+|\\s+))|(.*?))(?<message>.+)(\r)?\n')
 
 class LinterPylama
-  @cmd: ''
   @pylamaPath: ''
 
   constructor: ->
@@ -26,44 +25,34 @@ class LinterPylama
     @subscriptions.add atom.config.observe 'linter-pylama.ignoreErrorsAndWarnings',
     (ignoreErrorsAndWarnings) =>
       @ignoreErrorsAndWarnings_ = ignoreErrorsAndWarnings
-      do @initCmd
 
     @subscriptions.add atom.config.observe 'linter-pylama.skipFiles',
     (skipFiles) =>
       @skipFiles_ = skipFiles
-      do @initCmd
 
     @subscriptions.add atom.config.observe 'linter-pylama.useMccabe',
     (useMcCabe) =>
       @useMcCabe_ = useMcCabe
-      do @initCmd
 
     @subscriptions.add atom.config.observe 'linter-pylama.usePep8',
     (usePEP8) =>
       @usePEP8_ = usePEP8
-      do @initCmd
 
     @subscriptions.add atom.config.observe 'linter-pylama.usePep257',
     (usePEP257) =>
       @usePEP257_ = usePEP257
-      do @initCmd
 
     @subscriptions.add atom.config.observe 'linter-pylama.usePyflakes',
     (usePyFlakes) =>
       @usePyFlakes_ = usePyFlakes
-      do @initCmd
 
     @subscriptions.add atom.config.observe 'linter-pylama.usePylint',
     (usePyLint) =>
       @usePyLint_ = usePyLint
-      do @initCmd
 
     @subscriptions.add atom.config.observe 'linter-pylama.lintOnFly',
     (lintOnFly) =>
       @lintOnFly_ = lintOnFly
-
-    do @initPylama
-
 
   destroy: ->
     do @subscriptions.dispose
@@ -111,13 +100,9 @@ class LinterPylama
         @pylamaPath = pylamaPath
     else
       @pylamaPath = path.join path.dirname(__dirname), 'bin', 'pylama.py'
-    do @initCmd
 
 
   initCmd: =>
-    if not @pylamaPath
-      @cmd = ''
-      return
     cmd = [@pylamaPath, '-F']
 
     ignoreEW = atom.config.get 'linter-pylama.ignoreErrorsAndWarnings'
@@ -135,13 +120,13 @@ class LinterPylama
     linters = [usePyFlakes, usePyLint, useMcCabe, usePEP8, usePEP257].filter (e) -> e isnt ''
     if linters.length then cmd.push ['-l', do linters.join] else ['-l', 'none']
 
-    @cmd = cmd
+    return cmd
 
 
   makeLintInfo: (fileName, originFileName) =>
     if not originFileName
       originFileName = fileName
-    cmd = @cmd[0..]
+    cmd = do @initCmd
     cmd.push fileName
     console.log cmd if do atom.inDevMode
     info =
@@ -221,7 +206,7 @@ class LinterPylama
 
 
   lint: (textEditor) =>
-    if not @cmd
+    if not @pylamaPath
       return []
     @initPythonPath path.dirname do textEditor.getPath
     if @lintOnFly_
