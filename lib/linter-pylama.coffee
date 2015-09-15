@@ -105,17 +105,14 @@ class LinterPylama
   initCmd: =>
     cmd = [@pylamaPath, '-F']
 
-    ignoreEW = atom.config.get 'linter-pylama.ignoreErrorsAndWarnings'
-    if ignoreEW then cmd.push ['-i', ignoreEW]
+    if @ignoreErrorsAndWarnings_ then cmd.push ['-i', @ignoreErrorsAndWarnings_]
+    if @skipFiles_ then cmd.push ['--skip', @skipFiles_]
 
-    skipFiles = atom.config.get 'linter-pylama.skipFiles'
-    if skipFiles then cmd.push ['--skip', skipFiles]
-
-    usePyLint = if atom.config.get 'linter-pylama.usePylint' then 'pylint' else ''
-    useMcCabe = if atom.config.get 'linter-pylama.useMccabe' then 'mccabe' else ''
-    usePEP8 = if atom.config.get 'linter-pylama.usePep8' then 'pep8' else ''
-    usePEP257 = if atom.config.get 'linter-pylama.usePep257' then 'pep257' else ''
-    usePyFlakes = if atom.config.get 'linter-pylama.usePyflakes' then 'pyflakes' else ''
+    usePyLint = if @usePyLint_ then 'pylint' else ''
+    useMcCabe = if @useMcCabe_ then 'mccabe' else ''
+    usePEP8 = if @usePEP8_ then 'pep8' else ''
+    usePEP257 = if @usePEP257_ then 'pep257' else ''
+    usePyFlakes = if @usePyFlakes_ then 'pyflakes' else ''
 
     linters = [usePyFlakes, usePyLint, useMcCabe, usePEP8, usePEP257].filter (e) -> e isnt ''
     if linters.length then cmd.push ['-l', do linters.join] else ['-l', 'none']
