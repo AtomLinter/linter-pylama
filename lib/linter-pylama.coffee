@@ -235,7 +235,7 @@ class LinterPylama
     directory = path.resolve curDir
     loop
       return path.join directory, @configFileName_ if fs.existsSync path.join directory, @configFileName_
-      break if root_dir.test(directory) or not recursive
+      break if not recursive or root_dir.test directory
       directory = path.resolve path.join(directory, '..')
     return false
 
