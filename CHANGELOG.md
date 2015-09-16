@@ -1,3 +1,6 @@
+# 0.2.0
+* Added support config file. Close #11
+
 # 0.1.6
 * Used atom-package-deps for deps. Close #15
 
