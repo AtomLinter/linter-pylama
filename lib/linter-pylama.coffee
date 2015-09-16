@@ -54,6 +54,14 @@ class LinterPylama
     (lintOnFly) =>
       @lintOnFly_ = lintOnFly
 
+    @subscriptions.add atom.config.observe 'linter-pylama.configFileLoad',
+    (configFileLoad) =>
+      @configFileLoad_ = configFileLoad
+
+    @subscriptions.add atom.config.observe 'linter-pylama.configFileName',
+    (configFileName) =>
+      @configFileName_ = configFileName
+
   destroy: ->
     do @subscriptions.dispose
 
@@ -102,20 +110,29 @@ class LinterPylama
       @pylamaPath = path.join path.dirname(__dirname), 'bin', 'pylama.py'
 
 
-  initCmd: =>
+  initCmd: (curDir) =>
     cmd = [@pylamaPath, '-F']
 
-    if @ignoreErrorsAndWarnings_ then cmd.push ['-i', @ignoreErrorsAndWarnings_]
-    if @skipFiles_ then cmd.push ['--skip', @skipFiles_]
+    configFilePath = false
+    if @configFileLoad_ is 'Find config in the current directory'
+      configFilePath = @locateConfigFile curDir
+    else if @configFileLoad_ is 'Try to find config in the parent directories'
+      configFilePath = @locateConfigFile curDir, true
 
-    usePyLint = if @usePyLint_ then 'pylint' else ''
-    useMcCabe = if @useMcCabe_ then 'mccabe' else ''
-    usePEP8 = if @usePEP8_ then 'pep8' else ''
-    usePEP257 = if @usePEP257_ then 'pep257' else ''
-    usePyFlakes = if @usePyFlakes_ then 'pyflakes' else ''
+    if configFilePath
+      cmd.push ['-o'], [configFilePath]
+    else
+      if @ignoreErrorsAndWarnings_ then cmd.push ['-i', @ignoreErrorsAndWarnings_]
+      if @skipFiles_ then cmd.push ['--skip', @skipFiles_]
 
-    linters = [usePyFlakes, usePyLint, useMcCabe, usePEP8, usePEP257].filter (e) -> e isnt ''
-    if linters.length then cmd.push ['-l', do linters.join] else ['-l', 'none']
+      usePyLint = if @usePyLint_ then 'pylint' else ''
+      useMcCabe = if @useMcCabe_ then 'mccabe' else ''
+      usePEP8 = if @usePEP8_ then 'pep8' else ''
+      usePEP257 = if @usePEP257_ then 'pep257' else ''
+      usePyFlakes = if @usePyFlakes_ then 'pyflakes' else ''
+
+      linters = [usePyFlakes, usePyLint, useMcCabe, usePEP8, usePEP257].filter (e) -> e isnt ''
+      if linters.length then cmd.push ['-l', do linters.join] else ['-l', 'none']
 
     return cmd
 
@@ -123,14 +140,15 @@ class LinterPylama
   makeLintInfo: (fileName, originFileName) =>
     if not originFileName
       originFileName = fileName
-    cmd = do @initCmd
+    curDir = path.dirname originFileName
+    cmd = @initCmd curDir
     cmd.push fileName
     console.log cmd if do atom.inDevMode
     info =
       fileName: originFileName
       command: cmd[0]
       args: cmd.slice 1
-      options: {cwd: path.dirname originFileName}
+      options: {cwd: curDir}
 
 
   lintFile: (lintInfo, textEditor, callback) ->
@@ -210,6 +228,16 @@ class LinterPylama
       return @lintOnFly textEditor
     else
       return @lintOnSave textEditor
+
+
+  locateConfigFile: (curDir, recursive=false) =>
+    root_dir = if /^win/.test process.platform then /^.:\\$/ else /^\/$/
+    directory = path.resolve curDir
+    loop
+      return path.join directory, @configFileName_ if fs.existsSync path.join directory, @configFileName_
+      break if root_dir.test(directory) or not recursive
+      directory = path.resolve path.join(directory, '..')
+    return false
 
 
 module.exports = LinterPylama

@@ -47,6 +47,18 @@ module.exports =
       description: 'Use PyLint linter. May be unstable for internal Pylama.
       For use with external Pylama you should install pylama_pylint module
       ("pip install pylama-pylint").'
+    configFileLoad:
+      type: 'string'
+      default: 'Don\'t use config'
+      enum: [
+        'Don\'t use config',
+        'Find config in the current directory',
+        'Try to find config in the parent directories']
+      title: 'Use Pylama configuration file'
+    configFileName:
+      type: 'string'
+      default: 'pylama.ini'
+      title: 'Configuration file name'
     pylamaVersion:
       type: 'string'
       default: 'external'
