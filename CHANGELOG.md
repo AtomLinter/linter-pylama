@@ -1,3 +1,6 @@
+# 0.2.1
+* Updated pep257 to 0.7.1-alpha (c3f3757434133666c8518bf5e2b64674cdc53e21)
+
 # 0.2.0
 * Added support config file. Close #11
 
