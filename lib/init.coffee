@@ -63,8 +63,8 @@ module.exports =
       type: 'string'
       default: 'external'
       enum: ['external', 'internal']
-      description: 'Select between internal Pylama (with Virtualenv detection
-      and other cool things or external stable Pylama (do not forget to
+      description: 'Switch between internal Pylama (with Virtualenv detection
+      and other cool things) or external stable Pylama (do not forget to
       specify executable path).'
 
   activate: ->
