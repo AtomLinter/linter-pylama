@@ -60,8 +60,8 @@ except AttributeError:
     tokenize_open = open
 
 
-__version__ = '0.7.1-alpha'
-__all__ = ('check',)
+__version__ = '0.7.0'
+__all__ = ('check', 'collect')
 
 NO_VIOLATIONS_RETURN_CODE = 0
 VIOLATIONS_RETURN_CODE = 1
@@ -119,7 +119,6 @@ class Definition(Value):
     all = property(lambda self: self.module.all)
     _slice = property(lambda self: slice(self.start - 1, self.end))
     source = property(lambda self: ''.join(self._source[self._slice]))
-    is_class = False
 
     def __iter__(self):
         return chain([self], *self.children)
@@ -186,16 +185,11 @@ class Class(Definition):
 
     _nest = staticmethod(lambda s: {'def': Method, 'class': NestedClass}[s])
     is_public = Function.is_public
-    is_class = True
 
 
 class NestedClass(Class):
 
-    @property
-    def is_public(self):
-        return (not self.name.startswith('_') and
-                self.parent.is_class and
-                self.parent.is_public)
+    is_public = False
 
 
 class Decorator(Value):
@@ -268,9 +262,7 @@ class Parser(object):
     line = property(lambda self: self.stream.line)
 
     def consume(self, kind):
-        """Consume one token and verify it is of the expected kind."""
-        next_token = self.stream.move()
-        assert next_token.kind == kind
+        assert self.stream.move().kind == kind
 
     def leapfrog(self, kind, value=None):
         """Skip tokens in the stream until a certain token kind is reached.
@@ -343,9 +335,9 @@ class Parser(object):
             Decorator(''.join(name), ''.join(arguments)))
 
     def parse_definitions(self, class_, all=False):
-        """Parse multiple definitions and yield them."""
+        """Parse multiple defintions and yield them."""
         while self.current is not None:
-            log.debug("parsing definition list, current token is %r (%s)",
+            log.debug("parsing defintion list, current token is %r (%s)",
                       self.current.kind, self.current.value)
             if all and self.current.value == '__all__':
                 self.parse_all()
@@ -397,8 +389,8 @@ class Parser(object):
                   self.current.value == ','):
                 all_content += self.current.value
             else:
-                raise AllError('Unexpected token kind in  __all__: %r. ' %
-                               self.current.kind)
+                kind = token.tok_name[self.current.kind]
+                raise AllError('Unexpected token kind in  __all__: %s' % kind)
             self.stream.move()
         self.consume(tk.OP)
         all_content += ")"
@@ -495,8 +487,7 @@ class Parser(object):
             expected_end_kind = tk.OP
         else:
             expected_end_kind = tk.NEWLINE
-        while self.current.kind != expected_end_kind and not(
-                self.current.kind == tk.OP and self.current.value == ';'):
+        while self.current.kind != expected_end_kind:
             if self.current.kind != tk.NAME:
                 self.stream.move()
                 continue
@@ -507,10 +498,9 @@ class Parser(object):
             self.consume(tk.NAME)
             log.debug("parsing import, token is %r (%s)",
                       self.current.kind, self.current.value)
-            if self.current.kind == tk.NAME and self.current.value == 'as':
+            if self.current.kind == tk.NAME:
                 self.consume(tk.NAME)  # as
-                if self.current.kind == tk.NAME:
-                    self.consume(tk.NAME)  # new name, irrelevant
+                self.consume(tk.NAME)  # new name, irrelevant
             if self.current.value == ',':
                 self.consume(tk.OP)
             log.debug("parsing import, token is %r (%s)",
@@ -766,7 +756,7 @@ class ConfigurationParser(object):
     DEFAULT_MATCH_DIR_RE = '[^\.].*'
     DEFAULT_CONVENTION = conventions.pep257
 
-    PROJECT_CONFIG_FILES = ('setup.cfg', 'tox.ini', '.pep257', '.pep257rc')
+    PROJECT_CONFIG_FILES = ('setup.cfg', 'tox.ini', '.pep257')
 
     def __init__(self):
         """Create a configuration parser."""
@@ -1405,7 +1395,7 @@ class PEP257Checker(object):
                 yield D202(blanks_after_count)
 
     @check_for(Class)
-    def check_blank_before_after_class(self, class_, docstring):
+    def check_blank_before_after_class(slef, class_, docstring):
         """D20{3,4}: Class docstring should have 1 blank line around them.
 
         Insert a blank line before and after all docstrings (one-line or
