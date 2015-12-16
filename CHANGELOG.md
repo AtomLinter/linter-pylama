@@ -1,3 +1,10 @@
+# 0.2.5
+* Update pep257 version to 0.7.0
+* Update pyflakes version to 1.0.0
+* Update six to 1.10.0
+* Update Pylama version to 7.0.6
+* Correct typo and improved language
+
 # 0.2.2
 * Fix #18
 
