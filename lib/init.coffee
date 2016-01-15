@@ -8,7 +8,7 @@ module.exports =
     lintOnFly:
       type: 'boolean'
       default: true
-      descrition: "Enable linting on the fly. Need to restart Atom."
+      description: "Enable linting on the fly. Need to restart Atom."
     ignoreErrorsAndWarnings:
       type: 'string'
       default: ''
