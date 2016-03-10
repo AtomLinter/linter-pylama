@@ -113,7 +113,10 @@ class LinterPylama
       else
         @pylamaPath = pylamaPath
     else
-      @pylamaPath = path.join path.dirname(__dirname), 'bin', 'pylama.py'
+      if /^win/.test process.platform
+        @pylamaPath = path.join path.dirname(__dirname), 'bin', 'pylama.bat'
+      else
+        @pylamaPath = path.join path.dirname(__dirname), 'bin', 'pylama.py'
 
 
   initCmd: (curDir) =>
