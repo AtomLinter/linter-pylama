@@ -3,7 +3,7 @@ path = require 'path'
 temp = require 'temp'
 {BufferedProcess} = require 'atom'
 {CompositeDisposable} = require 'atom'
-XRegExp = require('xregexp').XRegExp
+XRegExp = require 'xregexp'
 
 regex = XRegExp '(?<file>.+):' +
   '(?<line>\\d+):' +
