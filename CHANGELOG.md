@@ -1,3 +1,7 @@
+# 0.2.7
+* Fix and close #32
+* Update xregexp
+
 # 0.2.5
 * Update pep257 version to 0.7.0
 * Update pyflakes version to 1.0.0
