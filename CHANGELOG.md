@@ -1,3 +1,6 @@
+# 0.2.9
+* Fix and close #34
+
 # 0.2.7
 * Fix and close #32
 * Update xregexp
