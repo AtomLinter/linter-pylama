@@ -97,7 +97,8 @@ class LinterPylama
 
     if pylamaVersion is 'external' and pylamaPath isnt @pylamaPath
       if /^(pylama|pylama\.exe)$/.test pylamaPath
-        process.env.PATH.split(path.delimiter).forEach (dir) =>
+        process_path = process.env.PATH or process.env.Path
+        process_path.split(path.delimiter).forEach (dir) =>
           tmp = path.join dir, pylamaPath
           if fs.existsSync tmp
             pylamaPath = tmp
