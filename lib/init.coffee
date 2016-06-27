@@ -61,7 +61,7 @@ module.exports =
       title: 'Configuration file name'
     pylamaVersion:
       type: 'string'
-      default: 'external'
+      default: 'internal'
       enum: ['external', 'internal']
       description: 'Switch between internal Pylama (with Virtualenv detection
       and other cool things) or external stable Pylama (do not forget to
