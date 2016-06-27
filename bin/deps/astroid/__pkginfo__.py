@@ -20,10 +20,10 @@ distname = 'astroid'
 
 modname = 'astroid'
 
-numversion = (1, 3, 6)
+numversion = (1, 4, 6)
 version = '.'.join([str(num) for num in numversion])
 
-install_requires = ['logilab-common >= 0.60.0', 'six']
+install_requires = ['six', 'lazy_object_proxy', 'wrapt']
 
 license = 'LGPL'
 
