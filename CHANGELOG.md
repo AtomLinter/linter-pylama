@@ -1,3 +1,11 @@
+# 0.3.0
+* Change default pylamaVersion
+* Update pylint to 1.5.6
+* Update pyflakes to 1.2.3
+* Update pep8 to 1.7.0
+* Update mccabe to 0.5.0
+* Update pylama to 7.0.9
+
 # 0.2.9
 * Fix and close #34
 
