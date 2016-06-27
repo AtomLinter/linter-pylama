@@ -2,7 +2,7 @@
 # pep8.py - Check Python source code formatting, according to PEP 8
 # Copyright (C) 2006-2009 Johann C. Rocholl <johann@rocholl.net>
 # Copyright (C) 2009-2014 Florent Xicluna <florent.xicluna@gmail.com>
-# Copyright (C) 2014 Ian Lee <ianlee1521@gmail.com>
+# Copyright (C) 2014-2016 Ian Lee <ianlee1521@gmail.com>
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation files
@@ -31,7 +31,7 @@ For usage and a list of options, try this:
 $ python pep8.py -h
 
 This program and its regression test suite live here:
-http://github.com/jcrocholl/pep8
+https://github.com/pycqa/pep8
 
 Groups of errors and warnings:
 E errors
@@ -62,7 +62,7 @@ try:
 except ImportError:
     from ConfigParser import RawConfigParser
 
-__version__ = '1.6.2'
+__version__ = '1.7.0'
 
 DEFAULT_EXCLUDE = '.svn,CVS,.bzr,.hg,.git,__pycache__,.tox'
 DEFAULT_IGNORE = 'E121,E123,E126,E226,E24,E704'
@@ -108,7 +108,7 @@ ERRORCODE_REGEX = re.compile(r'\b[A-Z]\d{3}\b')
 DOCSTRING_REGEX = re.compile(r'u?r?["\']')
 EXTRANEOUS_WHITESPACE_REGEX = re.compile(r'[[({] | []}),;:]')
 WHITESPACE_AFTER_COMMA_REGEX = re.compile(r'[,;:]\s*(?:  |\t)')
-COMPARE_SINGLETON_REGEX = re.compile(r'\b(None|False|True)?\s*([=!]=)'
+COMPARE_SINGLETON_REGEX = re.compile(r'(\bNone|\bFalse|\bTrue)?\s*([=!]=)'
                                      r'\s*(?(1)|(None|False|True))\b')
 COMPARE_NEGATIVE_REGEX = re.compile(r'\b(not)\s+[^][)(}{ ]+\s+(in|is)\s')
 COMPARE_TYPE_REGEX = re.compile(r'(?:[=!]=|is(?:\s+not)?)\s*type(?:s.\w+Type'
@@ -1171,7 +1171,7 @@ def python_3000_backticks(logical_line):
 ##############################################################################
 
 
-if '' == ''.encode():
+if sys.version_info < (3,):
     # Python 2: implicit encoding.
     def readlines(filename):
         """Read the source code."""
@@ -1314,6 +1314,16 @@ if COMMENT_WITH_NL:
 _checks = {'physical_line': {}, 'logical_line': {}, 'tree': {}}
 
 
+def _get_parameters(function):
+    if sys.version_info >= (3, 3):
+        return [parameter.name
+                for parameter
+                in inspect.signature(function).parameters.values()
+                if parameter.kind == parameter.POSITIONAL_OR_KEYWORD]
+    else:
+        return inspect.getargspec(function)[0]
+
+
 def register_check(check, codes=None):
     """Register a new check object."""
     def _add_check(check, kind, codes, args):
@@ -1322,13 +1332,13 @@ def register_check(check, codes=None):
         else:
             _checks[kind][check] = (codes or [''], args)
     if inspect.isfunction(check):
-        args = inspect.getargspec(check)[0]
+        args = _get_parameters(check)
         if args and args[0] in ('physical_line', 'logical_line'):
             if codes is None:
                 codes = ERRORCODE_REGEX.findall(check.__doc__ or '')
             _add_check(check, args[0], codes, args)
     elif inspect.isclass(check):
-        if inspect.getargspec(check.__init__)[0][:2] == ['self', 'tree']:
+        if _get_parameters(check.__init__)[:2] == ['self', 'tree']:
             _add_check(check, 'tree', codes, None)
 
 
@@ -1504,7 +1514,7 @@ class Checker(object):
         """Build the file's AST and run all AST checks."""
         try:
             tree = compile(''.join(self.lines), '', 'exec', PyCF_ONLY_AST)
-        except (SyntaxError, TypeError):
+        except (ValueError, SyntaxError, TypeError):
             return self.report_invalid_syntax()
         for name, cls, __ in self._ast_checks:
             checker = cls(tree, self.filename)
@@ -1955,8 +1965,8 @@ def get_parser(prog='pep8', version=__version__):
     parser.add_option('--format', metavar='format', default='default',
                       help="set the error format [default|pylint|<custom>]")
     parser.add_option('--diff', action='store_true',
-                      help="report only lines changed according to the "
-                           "unified diff received on STDIN")
+                      help="report changes only within line number ranges in "
+                           "the unified diff received on STDIN")
     group = parser.add_option_group("Testing Options")
     if os.path.exists(TESTSUITE_PATH):
         group.add_option('--testsuite', metavar='dir',
@@ -1984,24 +1994,24 @@ def read_config(options, args, arglist, parser):
 
     local_dir = os.curdir
 
+    if USER_CONFIG and os.path.isfile(USER_CONFIG):
+        if options.verbose:
+            print('user configuration: %s' % USER_CONFIG)
+        config.read(USER_CONFIG)
+
+    parent = tail = args and os.path.abspath(os.path.commonprefix(args))
+    while tail:
+        if config.read(os.path.join(parent, fn) for fn in PROJECT_CONFIG):
+            local_dir = parent
+            if options.verbose:
+                print('local configuration: in %s' % parent)
+            break
+        (parent, tail) = os.path.split(parent)
+
     if cli_conf and os.path.isfile(cli_conf):
         if options.verbose:
             print('cli configuration: %s' % cli_conf)
         config.read(cli_conf)
-    else:
-        if USER_CONFIG and os.path.isfile(USER_CONFIG):
-            if options.verbose:
-                print('user configuration: %s' % USER_CONFIG)
-            config.read(USER_CONFIG)
-
-        parent = tail = args and os.path.abspath(os.path.commonprefix(args))
-        while tail:
-            if config.read(os.path.join(parent, fn) for fn in PROJECT_CONFIG):
-                local_dir = parent
-                if options.verbose:
-                    print('local configuration: in %s' % parent)
-                break
-            (parent, tail) = os.path.split(parent)
 
     pep8_section = parser.prog
     if config.has_section(pep8_section):
@@ -2074,10 +2084,10 @@ def process_options(arglist=None, parse_argv=False, config_file=None,
         options = read_config(options, args, arglist, parser)
         options.reporter = parse_argv and options.quiet == 1 and FileReport
 
-    options.filename = options.filename and options.filename.split(',')
+    options.filename = _parse_multi_options(options.filename)
     options.exclude = normalize_paths(options.exclude)
-    options.select = options.select and options.select.split(',')
-    options.ignore = options.ignore and options.ignore.split(',')
+    options.select = _parse_multi_options(options.select)
+    options.ignore = _parse_multi_options(options.ignore)
 
     if options.diff:
         options.reporter = DiffReport
@@ -2086,6 +2096,22 @@ def process_options(arglist=None, parse_argv=False, config_file=None,
         args = sorted(options.selected_lines)
 
     return options, args
+
+
+def _parse_multi_options(options, split_token=','):
+    r"""Split and strip and discard empties.
+
+    Turns the following:
+
+    A,
+    B,
+
+    into ["A", "B"]
+    """
+    if options:
+        return [o.strip() for o in options.split(split_token) if o.strip()]
+    else:
+        return options
 
 
 def _main():
@@ -2100,17 +2126,22 @@ def _main():
 
     pep8style = StyleGuide(parse_argv=True)
     options = pep8style.options
+
     if options.doctest or options.testsuite:
         from testsuite.support import run_tests
         report = run_tests(pep8style)
     else:
         report = pep8style.check_files()
+
     if options.statistics:
         report.print_statistics()
+
     if options.benchmark:
         report.print_benchmark()
+
     if options.testsuite and not options.quiet:
         report.print_results()
+
     if report.total_errors:
         if options.count:
             sys.stderr.write(str(report.total_errors) + '\n')
