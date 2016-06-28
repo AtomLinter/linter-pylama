@@ -1,15 +1,14 @@
 fs = require "fs"
 path = require 'path'
-temp = require 'temp'
+helpers = require 'atom-linter'
 {BufferedProcess} = require 'atom'
 {CompositeDisposable} = require 'atom'
-XRegExp = require 'xregexp'
 
-regex = XRegExp '(?<file>.+):' +
+regex = '(?<file_>.+):' +
   '(?<line>\\d+):' +
   '(?<col>\\d+):' +
   '\\s+' +
-  '((((?<error>E)|(?<warning>[CDFNW]))(?<code>\\d+)(:\\s+|\\s+))|(.*?))' +
+  '((((?<type>E)|(?<type>[CDFNW]))(?<file>\\d+)(:\\s+|\\s+))|(.*?))' +
   '(?<message>.+)' +
   '(\r)?\n'
 
@@ -120,20 +119,17 @@ class LinterPylama
         @pylamaPath = path.join path.dirname(__dirname), 'bin', 'pylama.py'
 
 
-  initCmd: (curDir) =>
-    cmd = [@pylamaPath, '-F']
+  initArgs: (curDir) =>
+    args = ['-F']
 
-    configFilePath = false
-    if @configFileLoad_ is 'Find config in the current directory'
-      configFilePath = @locateConfigFile curDir
-    else if @configFileLoad_ is 'Try to find config in the parent directories'
-      configFilePath = @locateConfigFile curDir, true
+    if @configFileLoad_[0] is 'U' # 'Use pylama config'
+      configFilePath = helpers.findCached curDir, @configFileName_
 
     if configFilePath
-      cmd.push ['-o'], [configFilePath]
+      args.push.apply args, ['--options', configFilePath]
     else
-      if @ignoreErrorsAndWarnings_ then cmd.push ['-i', @ignoreErrorsAndWarnings_]
-      if @skipFiles_ then cmd.push ['--skip', @skipFiles_]
+      if @ignoreErrorsAndWarnings_ then args.push.apply args, ['--ignore', @ignoreErrorsAndWarnings_]
+      if @skipFiles_ then args.push.apply args, ['--skip', @skipFiles]
 
       usePyLint = if @usePyLint_ then 'pylint' else ''
       useMcCabe = if @useMcCabe_ then 'mccabe' else ''
@@ -142,92 +138,54 @@ class LinterPylama
       usePyFlakes = if @usePyFlakes_ then 'pyflakes' else ''
 
       linters = [usePyFlakes, usePyLint, useMcCabe, usePEP8, usePEP257].filter (e) -> e isnt ''
-      if linters.length then cmd.push ['-l', do linters.join] else ['-l', 'none']
+      args.push '--linters'
+      if linters.length then args.push do linters.join else args.push 'nane'
 
-    return cmd
+    args
 
 
   makeLintInfo: (fileName, originFileName) =>
     if not originFileName
       originFileName = fileName
     curDir = path.dirname originFileName
-    cmd = @initCmd curDir
-    cmd.push fileName
-    console.log cmd if do atom.inDevMode
+    args = @initArgs curDir
+    args.push fileName
+    console.log "#{@pylamaPath} #{args}" if do atom.inDevMode
     info =
       fileName: originFileName
-      command: cmd[0]
-      args: cmd.slice 1
+      command: @pylamaPath
+      args: args
       options: {cwd: curDir}
 
 
-  lintFile: (lintInfo, textEditor, callback) ->
-    results = []
-    stdout = (data) ->
-      console.log data if do atom.inDevMode
-      results.push data
-    stderr = (err) ->
-      console.log err if do atom.inDevMode
-    exit = (code) ->
-      messages = []
-      XRegExp.forEach results.join(''), regex, (match) =>
-        type = if match.error
-          "Error"
-        else if match.warning
-          "Warning"
-        line = textEditor.buffer.lines[match.line-1]
-        colEnd = line.length if line
-        code = match.error or match.warning or ''
-        code = "#{code}#{match.code} " if code
-        messages.push {
-          type: type or 'Warning'
-          text: code + match.message
-          filePath: lintInfo.fileName
-          range: [
-            [match.line - 1, 0]
-            [match.line - 1, colEnd]
-          ]
-        }
-      callback(messages)
-
-    lint_process = new BufferedProcess(
-      command: lintInfo.command
-      args: lintInfo.args
-      options: lintInfo.options
-      stdout: stdout
-      stderr: stderr
-      exit: exit
-    )
-    lint_process.onWillThrowError ({error, handle}) ->
-      atom.notifications.addError "Failed to run #{command}",
-        detail: "#{error.message}"
-        dismissable: true
-      handle()
-      callback []
+  lintFile: (lintInfo, textEditor) ->
+    helpers.exec(lintInfo.command, lintInfo.args, {stream: 'stdout', ignoreExitCode: true, cwd: lintInfo.options.cwb}).then (output) ->
+      console.log output if do atom.inDevMode
+      helpers.parse(output, regex).map (message) ->
+        code = "#{message.type}#{message.filePath}"
+        message.type = if message.type == 'E'
+          'Error'
+        else
+          'Warning'
+        message.filePath = lintInfo.fileName
+        message.text = "#{code} #{message.text}"
+        line = message.range[0][0]
+        col = message.range[0][1]
+        message.range = helpers.rangeFromLineNumber(textEditor, line, col)
+        message
 
 
   lintOnFly: (textEditor) =>
-    return new Promise (resolve, reject) =>
-      filePath = do textEditor.getPath
-      tmpOptions =
-        prefix: 'AtomLinter-'
-        suffix: "-#{path.basename filePath}"
-
-      temp.open tmpOptions, (err, tmpInfo) =>
-        return reject(err) if err
-        fs.write tmpInfo.fd, do textEditor.getText, (err) =>
-          return reject(err) if err
-          lintInfo = @makeLintInfo tmpInfo.path, filePath
-          @lintFile lintInfo, textEditor, (results) ->
-            fs.unlink tmpInfo.path
-            resolve results
+    filePath = do textEditor.getPath
+    fileName = path.basename do textEditor.getPath
+    helpers.tempFile fileName, do textEditor.getText, (tmpFilePath) =>
+      lintInfo = @makeLintInfo tmpFilePath, filePath
+      @lintFile lintInfo, textEditor
 
 
   lintOnSave: (textEditor) =>
-    return new Promise (resolve, reject) =>
-      lintInfo = @makeLintInfo do textEditor.getPath
-      @lintFile lintInfo, textEditor, (results) ->
-        resolve(results)
+    lintInfo = @makeLintInfo do textEditor.getPath
+    @lintFile lintInfo, textEditor
 
 
   lint: (textEditor) =>
@@ -236,18 +194,7 @@ class LinterPylama
     @initPythonPath path.dirname do textEditor.getPath
     if @lintOnFly_
       return @lintOnFly textEditor
-    else
-      return @lintOnSave textEditor
-
-
-  locateConfigFile: (curDir, recursive=false) =>
-    root_dir = if /^win/.test process.platform then /^.:\\$/ else /^\/$/
-    directory = path.resolve curDir
-    loop
-      return path.join directory, @configFileName_ if fs.existsSync path.join directory, @configFileName_
-      break if not recursive or root_dir.test directory
-      directory = path.resolve path.join(directory, '..')
-    return false
+    @lintOnSave textEditor
 
 
 module.exports = LinterPylama

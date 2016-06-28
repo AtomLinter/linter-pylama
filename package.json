@@ -16,9 +16,8 @@
     }
   },
   "dependencies": {
-    "atom-package-deps": "^4.0.1",
-    "temp": "^0.8.3",
-    "xregexp": "~3.1.1"
+    "atom-linter": "^6.0.0",
+    "atom-package-deps": "^4.0.1"
   },
   "package-deps": [
     "linter"

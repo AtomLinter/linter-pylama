@@ -49,11 +49,10 @@ module.exports =
       ("pip install pylama-pylint").'
     configFileLoad:
       type: 'string'
-      default: 'Don\'t use config'
+      default: 'Don\'t use pylama config'
       enum: [
-        'Don\'t use config',
-        'Find config in the current directory',
-        'Try to find config in the parent directories']
+        'Don\'t use pylama config',
+        'Use pylama config']
       title: 'Use Pylama configuration file'
     configFileName:
       type: 'string'
