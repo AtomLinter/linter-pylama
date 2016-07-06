@@ -75,7 +75,7 @@ class LinterPylama
     return @lintOnFly_
 
 
-  initPythonPath: (cwd) ->
+  initEnv: (cwd) ->
     pythonPath = if process.env['PYTHONPATH'] then process.env.PYTHONPATH else ''
     pythonPath = pythonPath.split path.delimiter
     pythonPath = pythonPath.filter(Boolean)
@@ -88,6 +88,7 @@ class LinterPylama
       pythonPath.push process_path
 
     process.env.PYTHONPATH = pythonPath.join path.delimiter
+    process.env
 
 
   initPylama: =>
@@ -148,6 +149,7 @@ class LinterPylama
     if not originFileName
       originFileName = fileName
     curDir = path.dirname originFileName
+    env = @initEnv curDir
     args = @initArgs curDir
     args.push fileName
     console.log "#{@pylamaPath} #{args}" if do atom.inDevMode
@@ -155,11 +157,11 @@ class LinterPylama
       fileName: originFileName
       command: @pylamaPath
       args: args
-      options: {cwd: curDir}
+      options: {cwd: curDir, env: env, stream: 'stdout', ignoreExitCode: true}
 
 
   lintFile: (lintInfo, textEditor) ->
-    helpers.exec(lintInfo.command, lintInfo.args, {stream: 'stdout', ignoreExitCode: true, cwd: lintInfo.options.cwb}).then (output) ->
+    helpers.exec(lintInfo.command, lintInfo.args, lintInfo.options).then (output) ->
       console.log output if do atom.inDevMode
       helpers.parse(output, regex).map (message) ->
         code = "#{message.type}#{message.filePath}"
@@ -191,7 +193,6 @@ class LinterPylama
   lint: (textEditor) =>
     if not @pylamaPath
       return []
-    @initPythonPath path.dirname do textEditor.getPath
     if @lintOnFly_
       return @lintOnFly textEditor
     @lintOnSave textEditor
