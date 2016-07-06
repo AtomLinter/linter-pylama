@@ -1,3 +1,6 @@
+# 0.4.0
+* Refactoring and simplify code
+
 # 0.3.0
 * Change default pylamaVersion
 * Update pylint to 1.5.6
