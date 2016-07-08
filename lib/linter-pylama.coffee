@@ -157,7 +157,7 @@ class LinterPylama
       fileName: originFileName
       command: @pylamaPath
       args: args
-      options: {cwd: curDir, env: env, stream: 'stdout', ignoreExitCode: true}
+      options: {env: env, stream: 'stdout', ignoreExitCode: true}
 
 
   lintFile: (lintInfo, textEditor) ->
