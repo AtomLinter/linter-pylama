@@ -173,7 +173,20 @@ class LinterPylama
         message.text = "#{code} #{message.text}"
         line = message.range[0][0]
         col = message.range[0][1]
-        message.range = helpers.rangeFromLineNumber(textEditor, line, col)
+        editorLine = textEditor.buffer.lines[line]
+        if not editorLine or not editorLine.length
+          colEnd = 0
+        else
+          colEnd = editorLine.indexOf(' ', col+1)
+          if colEnd == -1
+            colEnd = editorLine.length
+          else
+            colEnd = 3 if colEnd - col < 3
+            colEnd = if colEnd < editorLine.length then colEnd else editorLine.length
+        message.range = [
+          [line, col]
+          [line, colEnd]
+        ]
         message
 
 
