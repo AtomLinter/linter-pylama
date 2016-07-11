@@ -1,7 +1,6 @@
 fs = require "fs"
 path = require 'path'
 helpers = require 'atom-linter'
-{BufferedProcess} = require 'atom'
 {CompositeDisposable} = require 'atom'
 
 regex = '(?<file_>.+):' +
