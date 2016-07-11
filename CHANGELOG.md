@@ -1,3 +1,7 @@
+# 0.4.4
+* Fix #39 (UNC paths) for lintOnSave
+* Remove unused import
+
 # 0.4.0
 * Refactoring and simplify code
 
