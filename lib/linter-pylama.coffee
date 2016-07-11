@@ -113,7 +113,7 @@ class LinterPylama
       else
         @pylamaPath = pylamaPath
     else
-      if /^win/.test process.platform
+      if process.platform is 'win32'
         @pylamaPath = path.join path.dirname(__dirname), 'bin', 'pylama.bat'
       else
         @pylamaPath = path.join path.dirname(__dirname), 'bin', 'pylama.py'
@@ -198,7 +198,11 @@ class LinterPylama
 
 
   lintOnSave: (textEditor) =>
-    lintInfo = @makeLintInfo do textEditor.getPath
+    filePath = do textEditor.getPath
+    if process.platform is 'win32'
+      if filePath.slice(0, 2) == '\\\\'
+        return @lintOnFly textEditor
+    lintInfo = @makeLintInfo filePath
     @lintFile lintInfo, textEditor
 
 
