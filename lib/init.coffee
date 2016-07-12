@@ -28,8 +28,8 @@ module.exports =
     usePep8:
       type: 'boolean'
       default: true
-      title: 'Use PEP8'
-      description: 'Use PEP8 style guide checker.'
+      title: 'Use pycodestyle/pep8'
+      description: 'Use pycodestyle/pep8 style guide checker.'
     usePyflakes:
       type: 'boolean'
       default: true
@@ -38,8 +38,8 @@ module.exports =
     usePep257:
       type: 'boolean'
       default: true
-      title: 'Use PEP257'
-      description: 'Use PEP257 docstring conventions checker.'
+      title: 'Use pydocstyle/pep257'
+      description: 'Use pydocstyle/pep257 docstring conventions checker.'
     usePylint:
       type: 'boolean'
       default: false

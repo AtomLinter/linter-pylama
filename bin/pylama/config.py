@@ -12,7 +12,7 @@ from .libs.inirama import Namespace
 from .lint.extensions import LINTERS
 
 #: A default checkers
-DEFAULT_LINTERS = 'pep8', 'pyflakes', 'mccabe'
+DEFAULT_LINTERS = 'pycodestyle', 'pyflakes', 'mccabe'
 
 CURDIR = os.getcwd()
 CONFIG_FILES = 'pylama.ini', 'setup.cfg', 'tox.ini', 'pytest.ini'
@@ -81,8 +81,8 @@ PARSER.add_argument('--version', action='version',
                     version='%(prog)s ' + __version__)
 
 PARSER.add_argument(
-    "--format", "-f", default=_Default('pep8'), choices=['pep8', 'pylint'],
-    help="Choose errors format (pep8, pylint).")
+    "--format", "-f", default=_Default('pycodestyle'), choices=['pycodestyle', 'pylint'],
+    help="Choose errors format (pycodestyle, pylint).")
 
 PARSER.add_argument(
     "--select", "-s", default=_Default(''), type=split_csp_str,

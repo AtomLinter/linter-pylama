@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-# pep8.py - Check Python source code formatting, according to PEP 8
+# pycodestyle.py - Check Python source code formatting, according to PEP 8
+#
 # Copyright (C) 2006-2009 Johann C. Rocholl <johann@rocholl.net>
 # Copyright (C) 2009-2014 Florent Xicluna <florent.xicluna@gmail.com>
 # Copyright (C) 2014-2016 Ian Lee <ianlee1521@gmail.com>
@@ -28,10 +29,10 @@ r"""
 Check Python source code formatting, according to PEP 8.
 
 For usage and a list of options, try this:
-$ python pep8.py -h
+$ python pycodestyle.py -h
 
 This program and its regression test suite live here:
-https://github.com/pycqa/pep8
+https://github.com/pycqa/pycodestyle
 
 Groups of errors and warnings:
 E errors
@@ -54,6 +55,7 @@ import time
 import inspect
 import keyword
 import tokenize
+import warnings
 from optparse import OptionParser
 from fnmatch import fnmatch
 try:
@@ -62,10 +64,10 @@ try:
 except ImportError:
     from ConfigParser import RawConfigParser
 
-__version__ = '1.7.0'
+__version__ = '2.0.0'
 
 DEFAULT_EXCLUDE = '.svn,CVS,.bzr,.hg,.git,__pycache__,.tox'
-DEFAULT_IGNORE = 'E121,E123,E126,E226,E24,E704'
+DEFAULT_IGNORE = 'E121,E123,E126,E226,E24,E704,W503'
 try:
     if sys.platform == 'win32':
         USER_CONFIG = os.path.expanduser(r'~\.pep8')
@@ -77,7 +79,7 @@ try:
 except ImportError:
     USER_CONFIG = None
 
-PROJECT_CONFIG = ('setup.cfg', 'tox.ini', '.pep8')
+PROJECT_CONFIG = ('setup.cfg', 'tox.ini')
 TESTSUITE_PATH = os.path.join(os.path.dirname(__file__), 'testsuite')
 MAX_LINE_LENGTH = 79
 REPORT_FORMAT = {
@@ -325,6 +327,23 @@ def whitespace_around_keywords(logical_line):
             yield match.start(2), "E271 multiple spaces after keyword"
 
 
+def missing_whitespace_after_import_keyword(logical_line):
+    r"""Multiple imports in form from x import (a, b, c) should have space
+    between import statement and parenthesised name list.
+
+    Okay: from foo import (bar, baz)
+    E275: from foo import(bar, baz)
+    E275: from importable.module import(bar, baz)
+    """
+    line = logical_line
+    indicator = ' import('
+    if line.startswith('from '):
+        found = line.find(indicator)
+        if -1 < found:
+            pos = found + len(indicator) - 1
+            yield pos, "E275 missing whitespace after keyword"
+
+
 def missing_whitespace(logical_line):
     r"""Each comma, semicolon or colon should be followed by whitespace.
 
@@ -565,7 +584,7 @@ def continued_indentation(logical_line, tokens, indent_level, hang_closing,
                         break
             assert len(indent) == depth + 1
             if start[1] not in indent_chances:
-                # allow to line up tokens
+                # allow lining up tokens
                 indent_chances[start[1]] = text
 
         last_token_multiline = (start[0] != end[0])
@@ -759,6 +778,7 @@ def whitespace_around_named_parameter_equals(logical_line, tokens):
     Okay: boolean(a <= b)
     Okay: boolean(a >= b)
     Okay: def foo(arg: int = 42):
+    Okay: async def foo(arg: int = 42):
 
     E251: def complex(real, imag = 0.0):
     E251: return magic(r = real, i = imag)
@@ -767,7 +787,7 @@ def whitespace_around_named_parameter_equals(logical_line, tokens):
     no_space = False
     prev_end = None
     annotated_func_arg = False
-    in_def = logical_line.startswith('def')
+    in_def = logical_line.startswith(('def', 'async def'))
     message = "E251 unexpected spaces around keyword / parameter equals"
     for token_type, text, start, end, line in tokens:
         if token_type == tokenize.NL:
@@ -777,9 +797,9 @@ def whitespace_around_named_parameter_equals(logical_line, tokens):
             if start != prev_end:
                 yield (prev_end, message)
         if token_type == tokenize.OP:
-            if text == '(':
+            if text in '([':
                 parens += 1
-            elif text == ')':
+            elif text in ')]':
                 parens -= 1
             elif in_def and text == ':' and parens == 1:
                 annotated_func_arg = True
@@ -837,7 +857,7 @@ def whitespace_before_comment(logical_line, tokens):
 
 
 def imports_on_separate_lines(logical_line):
-    r"""Imports should usually be on separate lines.
+    r"""Place imports on separate lines.
 
     Okay: import os\nimport sys
     E401: import sys, os
@@ -857,8 +877,10 @@ def imports_on_separate_lines(logical_line):
 
 def module_imports_on_top_of_file(
         logical_line, indent_level, checker_state, noqa):
-    r"""Imports are always put at the top of the file, just after any module
-    comments and docstrings, and before module globals and constants.
+    r"""Place imports at the top of the file.
+
+    Always put imports at the top of the file, just after any module comments
+    and docstrings, and before module globals and constants.
 
     Okay: import os
     Okay: # this is a comment\nimport os
@@ -1017,16 +1039,22 @@ def break_around_binary_operator(logical_line, tokens):
     Okay: x = '''\n''' + ''
     Okay: foo(x,\n    -y)
     Okay: foo(x,  # comment\n    -y)
+    Okay: var = (1 &\n       ~2)
+    Okay: var = (1 /\n       -2)
+    Okay: var = (1 +\n       -1 +\n       -2)
     """
     def is_binary_operator(token_type, text):
         # The % character is strictly speaking a binary operator, but the
         # common usage seems to be to put it next to the format parameters,
         # after a line break.
         return ((token_type == tokenize.OP or text in ['and', 'or']) and
-                text not in "()[]{},:.;@=%")
+                text not in "()[]{},:.;@=%~")
 
     line_break = False
     unary_context = True
+    # Previous non-newline token types and text
+    previous_token_type = None
+    previous_text = None
     for token_type, text, start, end, line in tokens:
         if token_type == tokenize.COMMENT:
             continue
@@ -1034,10 +1062,14 @@ def break_around_binary_operator(logical_line, tokens):
             line_break = True
         else:
             if (is_binary_operator(token_type, text) and line_break and
-                    not unary_context):
+                    not unary_context and
+                    not is_binary_operator(previous_token_type,
+                                           previous_text)):
                 yield start, "W503 line break before binary operator"
             unary_context = text in '([{,;'
             line_break = False
+            previous_token_type = token_type
+            previous_text = text
 
 
 def comparison_to_singleton(logical_line, noqa):
@@ -1156,7 +1188,7 @@ def python_3000_not_equal(logical_line):
 
 
 def python_3000_backticks(logical_line):
-    r"""Backticks are removed in Python 3: use repr() instead.
+    r"""Use repr() instead of backticks in Python 3.
 
     Okay: val = repr(1 + 2)
     W604: val = `1 + 2`
@@ -1195,7 +1227,9 @@ else:
     isidentifier = str.isidentifier
 
     def stdin_get_value():
+        """Read the value from stdin."""
         return TextIOWrapper(sys.stdin.buffer, errors='ignore').read()
+
 noqa = re.compile(r'# no(?:qa|pep8)\b', re.I).search
 
 
@@ -1429,7 +1463,7 @@ class Checker(object):
         return check(*arguments)
 
     def init_checker_state(self, name, argument_names):
-        """ Prepares a custom state for the specific checker plugin."""
+        """Prepare custom state for the specific checker plugin."""
         if 'checker_state' in argument_names:
             self.checker_state = self._checker_states.setdefault(name, {})
 
@@ -1711,6 +1745,7 @@ class BaseReport(object):
 
 class FileReport(BaseReport):
     """Collect the results of the checks and print only the filenames."""
+
     print_filename = True
 
 
@@ -1918,6 +1953,7 @@ class StyleGuide(object):
 
 
 def get_parser(prog='pep8', version=__version__):
+    """Create the parser for the program."""
     parser = OptionParser(prog=prog, version=version,
                           usage="%prog [options] input ...")
     parser.config_options = [
@@ -1979,7 +2015,7 @@ def get_parser(prog='pep8', version=__version__):
 
 
 def read_config(options, args, arglist, parser):
-    """Read and parse configurations
+    """Read and parse configurations.
 
     If a config file is specified on the command line with the "--config"
     option, then only it is used for configuration.
@@ -2124,14 +2160,14 @@ def _main():
     except AttributeError:
         pass    # not supported on Windows
 
-    pep8style = StyleGuide(parse_argv=True)
-    options = pep8style.options
+    style_guide = StyleGuide(parse_argv=True)
+    options = style_guide.options
 
     if options.doctest or options.testsuite:
         from testsuite.support import run_tests
-        report = run_tests(pep8style)
+        report = run_tests(style_guide)
     else:
-        report = pep8style.check_files()
+        report = style_guide.check_files()
 
     if options.statistics:
         report.print_statistics()
@@ -2146,6 +2182,7 @@ def _main():
         if options.count:
             sys.stderr.write(str(report.total_errors) + '\n')
         sys.exit(1)
+
 
 if __name__ == '__main__':
     _main()

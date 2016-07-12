@@ -16,14 +16,16 @@ except ImportError:
     pass
 
 try:
-    from pylama.lint.pylama_pep257 import Linter
-    LINTERS['pep257'] = Linter()
+    from pylama.lint.pylama_pydocstyle import Linter
+    LINTERS['pep257'] = Linter()  # for compatibility
+    LINTERS['pydocstyle'] = Linter()
 except ImportError:
     pass
 
 try:
-    from pylama.lint.pylama_pep8 import Linter
-    LINTERS['pep8'] = Linter()
+    from pylama.lint.pylama_pycodestyle import Linter
+    LINTERS['pycodestyle'] = Linter()  # for compability
+    LINTERS['pep8'] = Linter()  # for compability
 except ImportError:
     pass
 
