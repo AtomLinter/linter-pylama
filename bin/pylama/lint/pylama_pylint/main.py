@@ -41,7 +41,8 @@ class Linter(BaseLinter):
 
             def handle_message(self, msg):
                 self.add_message(
-                    msg.msg_id, (msg.abspath, msg.module, msg.obj, msg.line, msg.column),
+                    msg.msg_id,
+                    (msg.abspath, msg.module, msg.obj, msg.line, msg.column),
                     msg.msg)
 
             def add_message(self, msg_id, location, msg):
