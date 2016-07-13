@@ -7,7 +7,7 @@ regex = '(?<file_>.+):' +
   '(?<line>\\d+):' +
   '(?<col>\\d+):' +
   '\\s+' +
-  '((((?<type>E)|(?<type>[CDFNW]))(?<file>\\d+)(:\\s+|\\s+))|(.*?))' +
+  '(((?<type>[ECDFNW])(?<file>\\d+)(:\\s+|\\s+))|(.*?))' +
   '(?<message>.+)' +
   '(\r)?\n'
 
@@ -164,7 +164,7 @@ class LinterPylama
       console.log output if do atom.inDevMode
       helpers.parse(output, regex).map (message) ->
         code = "#{message.type}#{message.filePath}"
-        message.type = if message.type == 'E'
+        message.type = if message.type in ['E', 'F']
           'Error'
         else
           'Warning'
