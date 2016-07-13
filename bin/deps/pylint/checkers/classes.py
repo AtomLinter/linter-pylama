@@ -1,18 +1,6 @@
-# Copyright (c) 2003-2014 LOGILAB S.A. (Paris, FRANCE).
-# http://www.logilab.fr/ -- mailto:contact@logilab.fr
-#
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of the GNU General Public License as published by the Free Software
-# Foundation; either version 2 of the License, or (at your option) any later
-# version.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along with
-# this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+# Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+# For details: https://github.com/PyCQA/pylint/blob/master/COPYING
+
 """classes checker for Python code
 """
 from __future__ import generators
@@ -305,11 +293,11 @@ class ClassChecker(BaseChecker):
     priority = -2
     # configuration options
     options = (('ignore-iface-methods',
-                # TODO(cpopa): remove this in Pylint 1.6.
                 deprecated_option(opt_type="csv",
                                   help_msg="This is deprecated, because "
-                                           "it is not used anymore.")
-               ),
+                                           "it is not used anymore.",
+                                  deprecation_msg="This option %r will be "
+                                                  "removed in Pylint 2.0")),
                ('defining-attr-methods',
                 {'default' : ('__init__', '__new__', 'setUp'),
                  'type' : 'csv',
@@ -928,7 +916,8 @@ a metaclass class method.'}
             except astroid.InferenceError:
                 continue
         for klass, method in six.iteritems(not_called_yet):
-            if klass.name == 'object' or method.parent.name == 'object':
+            cls = node_frame_class(method)
+            if klass.name == 'object' or (cls and cls.name == 'object'):
                 continue
             self.add_message('super-init-not-called', args=klass.name, node=node)
 
@@ -1000,16 +989,22 @@ class SpecialMethodsChecker(BaseChecker):
                   'invalid number of parameters. If it has too few or '
                   'too many, it might not work at all.',
                   {'old_names': [('E0235', 'bad-context-manager')]}),
+        'E0303': ('__len__ does not return non-negative integer',
+                  'invalid-length-returned',
+                  'Used when an __len__ method returns something which is not a '
+                  'non-negative integer', {}),
     }
     priority = -2
 
     @check_messages('unexpected-special-method-signature',
-                    'non-iterator-returned')
+                    'non-iterator-returned', 'invalid-length-returned')
     def visit_functiondef(self, node):
         if not node.is_method():
             return
         if node.name == '__iter__':
             self._check_iter(node)
+        if node.name == '__len__':
+            self._check_len(node)
         if node.name in PYMETHODS:
             self._check_unexpected_method_signature(node)
 
@@ -1090,6 +1085,19 @@ class SpecialMethodsChecker(BaseChecker):
         if infered is not None:
             if not self._is_iterator(infered):
                 self.add_message('non-iterator-returned', node=node)
+
+    def _check_len(self, node):
+        inferred = _safe_infer_call_result(node, node)
+        if inferred is None or inferred is astroid.YES:
+            return
+
+        if not isinstance(inferred, astroid.Const):
+            self.add_message('invalid-length-returned', node=node)
+            return
+
+        value = inferred.value
+        if not isinstance(value, six.integer_types) or value < 0:
+            self.add_message('invalid-length-returned', node=node)
 
 
 def _ancestors_to_call(klass_node, method='__init__'):

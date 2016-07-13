@@ -1,16 +1,6 @@
-# Copyright (c) 2003-2013 LOGILAB S.A. (Paris, FRANCE).
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of the GNU General Public License as published by the Free Software
-# Foundation; either version 2 of the License, or (at your option) any later
-# version.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details
-#
-# You should have received a copy of the GNU General Public License along with
-# this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+# Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+# For details: https://github.com/PyCQA/pylint/blob/master/COPYING
+
 """utilities for Pylint configuration :
 
 * pylintrc
@@ -36,7 +26,10 @@ import re
 import sys
 import time
 
-from six.moves import configparser
+try:
+    import configparser
+except ImportError:
+    from six.moves import configparser
 from six.moves import range
 
 from pylint import utils
@@ -162,6 +155,9 @@ def _regexp_validator(_, name, value):
         return value
     return re.compile(value)
 
+# pylint: disable=unused-argument
+def _regexp_csv_validator(_, name, value):
+    return [_regexp_validator(_, name, val) for val in _csv_validator(_, name, value)]
 
 def _yn_validator(opt, _, value):
     if isinstance(value, int):
@@ -178,6 +174,7 @@ VALIDATORS = {
     'string': utils._unquote,
     'int': int,
     'regexp': re.compile,
+    'regexp_csv': _regexp_csv_validator,
     'csv': _csv_validator,
     'yn': _yn_validator,
     'choice': lambda opt, name, value: _choice_validator(opt['choices'], name, value),
@@ -255,10 +252,14 @@ def _multiple_choices_validating_option(opt, name, value):
 
 
 class Option(optparse.Option):
-    TYPES = optparse.Option.TYPES + ('regexp', 'csv', 'yn', 'multiple_choice')
+    TYPES = optparse.Option.TYPES + ('regexp', 'regexp_csv', 'csv', 'yn',
+                                     'multiple_choice',
+                                     'non_empty_string')
+
     ATTRS = optparse.Option.ATTRS + ['hide', 'level']
     TYPE_CHECKER = copy.copy(optparse.Option.TYPE_CHECKER)
     TYPE_CHECKER['regexp'] = _regexp_validator
+    TYPE_CHECKER['regexp_csv'] = _regexp_csv_validator
     TYPE_CHECKER['csv'] = _csv_validator
     TYPE_CHECKER['yn'] = _yn_validator
     TYPE_CHECKER['multiple_choice'] = _multiple_choices_validating_option
@@ -666,7 +667,7 @@ class OptionsManagerMixIn(object):
             else:
                 args = list(args)
             (options, args) = self.cmdline_parser.parse_args(args=args)
-            for provider in self._nocallback_options.keys():
+            for provider in self._nocallback_options:
                 config = provider.config
                 for attr in config.__dict__.keys():
                     value = getattr(options, attr, None)

@@ -1,18 +1,6 @@
-# Copyright (c) 2003-2014 LOGILAB S.A. (Paris, FRANCE).
-# http://www.logilab.fr/ -- mailto:contact@logilab.fr
-#
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of the GNU General Public License as published by the Free Software
-# Foundation; either version 2 of the License, or (at your option) any later
-# version.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details
-#
-# You should have received a copy of the GNU General Public License along with
-# this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+# Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+# For details: https://github.com/PyCQA/pylint/blob/master/COPYING
+
 """ %prog [options] module_or_package
 
   Check that a module satisfies a coding standard (and more !).
@@ -36,8 +24,8 @@ try:
 except ImportError:
     multiprocessing = None
 import sys
-import tokenize
 import warnings
+import tokenize
 
 import six
 
@@ -275,6 +263,13 @@ class PyLinter(config.OptionsManagerMixIn,
                   'dest' : 'black_list', 'default' : ('CVS',),
                   'help' : 'Add files or directories to the blacklist. '
                            'They should be base names, not paths.'}),
+
+                ('ignore-patterns',
+                 {'type' : 'regexp_csv', 'metavar' : '<pattern>[,<pattern>...]',
+                  'dest' : 'black_list_re', 'default' : (),
+                  'help' : 'Add files or directories matching the regex patterns to the'
+                           ' blacklist. The regex matches against base names, not paths.'}),
+
                 ('persistent',
                  {'default': True, 'type' : 'yn', 'metavar' : '<y_or_n>',
                   'level': 1,
@@ -302,7 +297,8 @@ class PyLinter(config.OptionsManagerMixIn,
                   'help' : 'Put messages in a separate file for each module / '
                            'package specified on the command line instead of printing '
                            'them on stdout. Reports (if any) will be written in a file '
-                           'name "pylint_global.[txt|html]".'}),
+                           'name "pylint_global.[txt|html]". This option is deprecated and '
+                           'it will be removed in Pylint 2.0.'}),
 
                 ('reports',
                  {'default': 1, 'type' : 'yn', 'metavar' : '<y_or_n>',
@@ -372,9 +368,6 @@ class PyLinter(config.OptionsManagerMixIn,
                             'See doc for all details')
                  }),
 
-                ('include-ids', utils.deprecated_option('i', 'yn', INCLUDE_IDS_HELP)),
-                ('symbols', utils.deprecated_option('s', 'yn', SYMBOLS_HELP)),
-
                 ('jobs',
                  {'type' : 'int', 'metavar': '<n-processes>',
                   'short': 'j',
@@ -406,7 +399,8 @@ class PyLinter(config.OptionsManagerMixIn,
                            'Joining a lot of strings can lead to a maximum '
                            'recursion error in Pylint and this flag can prevent '
                            'that. It has one side effect, the resulting AST '
-                           'will be different than the one from reality.')}
+                           'will be different than the one from reality. '
+                           'This option is deprecated and it will be removed in Pylint 2.0.')}
                 ),
                )
 
@@ -577,7 +571,8 @@ class PyLinter(config.OptionsManagerMixIn,
 
     def disable_noerror_messages(self):
         for msgcat, msgids in six.iteritems(self.msgs_store._msgs_by_category):
-            if msgcat == 'E':
+            # enable only messages with 'error' severity and above ('fatal')
+            if msgcat in ['E', 'F']:
                 for msgid in msgids:
                     self.enable(msgid)
             else:
@@ -691,9 +686,8 @@ class PyLinter(config.OptionsManagerMixIn,
         # get needed checkers
         neededcheckers = [self]
         for checker in self.get_checkers()[1:]:
-            # fatal errors should not trigger enable / disabling a checker
             messages = set(msg for msg in checker.msgs
-                           if msg[0] != 'F' and self.is_message_enabled(msg))
+                           if self.is_message_enabled(msg))
             if (messages or
                     any(self.report_is_enabled(r[0]) for r in checker.reports)):
                 neededcheckers.append(checker)
@@ -740,7 +734,7 @@ class PyLinter(config.OptionsManagerMixIn,
 
     def _get_jobs_config(self):
         child_config = collections.OrderedDict()
-        filter_options = {'symbols', 'include-ids', 'long-help'}
+        filter_options = {'long-help'}
         filter_options.update((opt_name for opt_name, _ in self._external_opts))
         for opt_providers in six.itervalues(self._all_options):
             for optname, optdict, val in opt_providers.options_and_values():
@@ -877,7 +871,8 @@ class PyLinter(config.OptionsManagerMixIn,
     def expand_files(self, modules):
         """get modules and errors from a list of modules and handle errors
         """
-        result, errors = utils.expand_modules(modules, self.config.black_list)
+        result, errors = utils.expand_modules(modules, self.config.black_list,
+                                              self.config.black_list_re)
         for error in errors:
             message = modname = error["mod"]
             key = error["key"]
@@ -1226,8 +1221,6 @@ group are mutually exclusive.'),
               'help' : 'In Python 3 porting mode, all checkers will be '
                        'disabled and only messages emitted by the porting '
                        'checker will be displayed'}),
-
-            ('profile', utils.deprecated_option(opt_type='yn')),
 
             ), option_groups=self.option_groups, pylintrc=self._rcfile)
         # register standard checkers

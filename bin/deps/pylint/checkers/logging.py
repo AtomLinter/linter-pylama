@@ -1,16 +1,6 @@
-# Copyright (c) 2009-2010 Google, Inc.
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of the GNU General Public License as published by the Free Software
-# Foundation; either version 2 of the License, or (at your option) any later
-# version.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along with
-# this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+# Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+# For details: https://github.com/PyCQA/pylint/blob/master/COPYING
+
 """checker for use of Python logging
 """
 
@@ -68,14 +58,12 @@ CHECKED_CONVENIENCE_FUNCTIONS = set([
 
 def is_method_call(callfunc_node, types=(), methods=()):
     """Determines if a CallFunc node represents a method call.
-
     Args:
-      callfunc_node: The CallFunc AST node to check.
-      types: Optional sequence of caller type names to restrict check.
-      methods: Optional sequence of method names to restrict check.
-
+      callfunc_node (astroid.CallFunc): The CallFunc AST node to check.
+      types (Optional[String]): Optional sequence of caller type names to restrict check.
+      methods (Optional[String]): Optional sequence of method names to restrict check.
     Returns:
-      True, if the node represents a method call for the given type and
+      bool: true if the node represents a method call for the given type and
       method names, False otherwise.
     """
     if not isinstance(callfunc_node, astroid.Call):
@@ -193,7 +181,8 @@ class LoggingChecker(checkers.BaseChecker):
         """Checks that function call is not format_string.format().
 
         Args:
-          callfunc_node: CallFunc AST node to be checked.
+          callfunc_node (astroid.node_classes.NodeNG):
+            CallFunc AST node to be checked.
         """
         if is_method_call(callfunc_node, ('str', 'unicode'), ('format',)):
             self.add_message('logging-format-interpolation', node=callfunc_node)
@@ -202,8 +191,8 @@ class LoggingChecker(checkers.BaseChecker):
         """Checks that format string tokens match the supplied arguments.
 
         Args:
-          node: AST node to be checked.
-          format_arg: Index of the format string in the node arguments.
+          node (astroid.node_classes.NodeNG): AST node to be checked.
+          format_arg (int): Index of the format string in the node arguments.
         """
         num_args = _count_supplied_tokens(node.args[format_arg + 1:])
         if not num_args:
@@ -245,10 +234,10 @@ def _count_supplied_tokens(args):
     arguments that aren't keywords.
 
     Args:
-      args: List of AST nodes that are arguments for a log format string.
+      args (list): AST nodes that are arguments for a log format string.
 
     Returns:
-      Number of AST nodes that aren't keywords.
+      int: Number of AST nodes that aren't keywords.
     """
     return sum(1 for arg in args if not isinstance(arg, astroid.Keyword))
 

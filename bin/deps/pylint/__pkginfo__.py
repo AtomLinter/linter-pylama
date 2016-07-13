@@ -1,46 +1,36 @@
+# Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+# For details: https://github.com/PyCQA/pylint/blob/master/COPYING
+
 # pylint: disable=W0622,C0103
-# Copyright (c) 2003-2014 LOGILAB S.A. (Paris, FRANCE).
-# http://www.logilab.fr/ -- mailto:contact@logilab.fr
-#
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of the GNU General Public License as published by the Free Software
-# Foundation; either version 2 of the License, or (at your option) any later
-# version.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details
-#
-# You should have received a copy of the GNU General Public License along with
-# this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 """pylint packaging information"""
 from __future__ import absolute_import
 
-import sys
 from os.path import join
 
 
 modname = distname = 'pylint'
 
-numversion = (1, 5, 6)
+numversion = (1, 6, 1)
 version = '.'.join([str(num) for num in numversion])
 
 install_requires = [
     'astroid>=1.4.5,<1.5.0',
     'six',
+    'isort >= 4.2.5',
+    'mccabe',
 ]
 
-if sys.platform == 'win32':
-    install_requires.append('colorama')
+extras_require = {}
+extras_require[':sys_platform=="win32"'] = ['colorama']
+extras_require[':python_version=="2.7"'] = ['configparser', 'backports.functools_lru_cache']
 
 
 license = 'GPL'
 description = "python code static checker"
-web = 'http://www.pylint.org'
-mailinglist = "mailto://code-quality@python.org"
-author = 'Logilab'
-author_email = 'python-projects@lists.logilab.org'
+web = 'https://github.com/PyCQA/pylint'
+mailinglist = "mailto:code-quality@python.org"
+author = 'Python Code Quality Authority'
+author_email = 'code-quality@python.org'
 
 classifiers = ['Development Status :: 4 - Beta',
                'Environment :: Console',

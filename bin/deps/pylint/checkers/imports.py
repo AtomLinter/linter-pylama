@@ -1,36 +1,28 @@
-# Copyright (c) 2003-2013 LOGILAB S.A. (Paris, FRANCE).
-# http://www.logilab.fr/ -- mailto:contact@logilab.fr
-#
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of the GNU General Public License as published by the Free Software
-# Foundation; either version 2 of the License, or (at your option) any later
-# version.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along with
-# this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+# Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+# For details: https://github.com/PyCQA/pylint/blob/master/COPYING
+
 """imports checkers for Python code"""
 
 import collections
-from distutils import sysconfig
 import os
 import sys
+from distutils import sysconfig
 
 import six
 
 import astroid
 from astroid import are_exclusive
-from astroid.modutils import (get_module_part, is_standard_module,
-                              file_from_modpath)
+from astroid.modutils import (get_module_part, is_standard_module)
+import isort
 
 from pylint.interfaces import IAstroidChecker
 from pylint.utils import EmptyReport, get_global_option
 from pylint.checkers import BaseChecker
-from pylint.checkers.utils import check_messages, node_ignores_exception
+from pylint.checkers.utils import (
+    check_messages,
+    node_ignores_exception,
+    is_from_fallback_block
+)
 from pylint.graph import get_cycles, DotBackend
 from pylint.reporters.ureports.nodes import VerbatimText, Paragraph
 
@@ -64,7 +56,7 @@ def _get_import_name(importnode, modname):
     return modname
 
 
-def _get_first_import(node, context, name, base, level):
+def _get_first_import(node, context, name, base, level, alias):
     """return the node where [base.]<name> is imported or None if not found
     """
     fullname = '%s.%s' % (base, name) if base else name
@@ -81,10 +73,19 @@ def _get_first_import(node, context, name, base, level):
                 found = True
                 break
         elif isinstance(first, astroid.ImportFrom):
-            if level == first.level and any(
-                    fullname == '%s.%s' % (first.modname, iname[0])
-                    for iname in first.names):
-                found = True
+            if level != first.level:
+                continue
+
+            for imported_name, imported_alias in first.names:
+                if fullname == '%s.%s' % (first.modname, imported_name):
+                    found = True
+                    break
+                if name != '*' and name == imported_name:
+                    if alias or imported_alias:
+                        continue
+                    found = True
+                    break
+            if found:
                 break
     if found and not are_exclusive(first, node):
         return first
@@ -207,6 +208,11 @@ MSGS = {
               'Used when code and imports are mixed'),
     }
 
+
+DEFAULT_STANDARD_LIBRARY = ()
+DEFAULT_KNOWN_THIRD_PARTY = ('enchant',)
+
+
 class ImportsChecker(BaseChecker):
     """checks for
     * external modules dependencies
@@ -253,6 +259,29 @@ given file (report RP0402 must not be disabled)'}
                  'help' : 'Create a graph of internal dependencies in the \
 given file (report RP0402 must not be disabled)'}
                ),
+               ('known-standard-library',
+                {'default': DEFAULT_STANDARD_LIBRARY,
+                 'type': 'csv',
+                 'metavar': '<modules>',
+                 'help': 'Force import order to recognize a module as part of' \
+                         ' the standard compatibility libraries.'}
+               ),
+               ('known-third-party',
+                {'default': DEFAULT_KNOWN_THIRD_PARTY,
+                 'type': 'csv',
+                 'metavar': '<modules>',
+                 'help': 'Force import order to recognize a module as part of' \
+                         ' a third party library.'}
+               ),
+               ('analyse-fallback-blocks',
+                {'default': False,
+                 'type': 'yn',
+                 'metavar': '<y_or_n>',
+                 'help': 'Analyse import fallback blocks. This can be used to '
+                         'support both Python 2 and 3 compatible code, which means that '
+                         'the block might have code that exists only in one or another '
+                         'interpreter, leading to false positives when analysed.'}),
+
               )
 
     def __init__(self, linter=None):
@@ -309,7 +338,7 @@ given file (report RP0402 must not be disabled)'}
                 self.add_message('cyclic-import', args=' -> '.join(cycle))
 
     @check_messages('wrong-import-position', 'multiple-imports',
-                    'relative-import', 'reimported')
+                    'relative-import', 'reimported', 'deprecated-module')
     def visit_import(self, node):
         """triggered when an import statement is seen"""
         self._check_reimport(node)
@@ -321,9 +350,11 @@ given file (report RP0402 must not be disabled)'}
 
         for name in names:
             self._check_deprecated_module(node, name)
-            importedmodnode = self.get_imported_module(node, name)
-            if isinstance(node.scope(), astroid.Module):
+            importedmodnode = self._get_imported_module(node, name)
+            if isinstance(node.parent, astroid.Module):
+                # Allow imports nested
                 self._check_position(node)
+            if isinstance(node.scope(), astroid.Module):
                 self._record_import(node, importedmodnode)
 
             if importedmodnode is None:
@@ -343,9 +374,11 @@ given file (report RP0402 must not be disabled)'}
         self._check_reimport(node, basename=basename, level=node.level)
 
         modnode = node.root()
-        importedmodnode = self.get_imported_module(node, basename)
-        if isinstance(node.scope(), astroid.Module):
+        importedmodnode = self._get_imported_module(node, basename)
+        if isinstance(node.parent, astroid.Module):
+            # Allow imports nested
             self._check_position(node)
+        if isinstance(node.scope(), astroid.Module):
             self._record_import(node, importedmodnode)
         if importedmodnode is None:
             return
@@ -375,7 +408,7 @@ given file (report RP0402 must not be disabled)'}
         self._imports_stack = []
         self._first_non_import_node = None
 
-    def visit_if(self, node):
+    def compute_first_non_import_node(self, node):
         # if the node does not contain an import instruction, and if it is the
         # first node of the module, keep a track of it (all the import positions
         # of the module will be compared to the position of this first
@@ -384,12 +417,26 @@ given file (report RP0402 must not be disabled)'}
             return
         if not isinstance(node.parent, astroid.Module):
             return
-        if any(node.nodes_of_class((astroid.Import, astroid.ImportFrom))):
+        nested_allowed = [astroid.TryExcept, astroid.TryFinally]
+        is_nested_allowed = [
+            allowed for allowed in nested_allowed if isinstance(node, allowed)]
+        if is_nested_allowed and \
+                any(node.nodes_of_class((astroid.Import, astroid.ImportFrom))):
             return
+        if isinstance(node, astroid.Assign):
+            # Add compatibility for module level dunder names
+            # https://www.python.org/dev/peps/pep-0008/#module-level-dunder-names
+            valid_targets = [
+                isinstance(target, astroid.AssignName) and
+                target.name.startswith('__') and target.name.endswith('__')
+                for target in node.targets]
+            if all(valid_targets):
+                return
         self._first_non_import_node = node
 
-    visit_tryfinally = visit_tryexcept = visit_assignattr = visit_assign \
-            = visit_ifexp = visit_comprehension = visit_if
+    visit_tryfinally = visit_tryexcept = visit_assignattr = visit_assign = \
+        visit_ifexp = visit_comprehension = visit_expr = visit_if = \
+        compute_first_non_import_node
 
     def visit_functiondef(self, node):
         # If it is the first non import instruction of the module, record it.
@@ -449,7 +496,19 @@ given file (report RP0402 must not be disabled)'}
         """Record the package `node` imports from"""
         importedname = importedmodnode.name if importedmodnode else None
         if not importedname:
-            importedname = node.names[0][0].split('.')[0]
+            if isinstance(node, astroid.ImportFrom):
+                importedname = node.modname
+            else:
+                importedname = node.names[0][0].split('.')[0]
+        if isinstance(node, astroid.ImportFrom) and (node.level or 0) >= 1:
+            # We need the impotedname with first point to detect local package
+            # Example of node:
+            #  'from .my_package1 import MyClass1'
+            #  the output should be '.my_package1' instead of 'my_package1'
+            # Example of node:
+            #  'from . import my_package2'
+            #  the output should be '.my_package2' instead of '{pyfile}'
+            importedname = '.' + importedname
         self._imports_stack.append((node, importedname))
 
     @staticmethod
@@ -466,39 +525,44 @@ given file (report RP0402 must not be disabled)'}
         extern_imports = []
         local_imports = []
         std_imports = []
+        extern_not_nested = []
+        local_not_nested = []
+        isort_obj = isort.SortImports(
+            file_contents='', known_third_party=self.config.known_third_party,
+            known_standard_library=self.config.known_standard_library,
+        )
         for node, modname in self._imports_stack:
-            package = modname.split('.')[0]
-            if is_standard_module(modname):
+            if modname.startswith('.'):
+                package = '.' + modname.split('.')[1]
+            else:
+                package = modname.split('.')[0]
+            nested = not isinstance(node.parent, astroid.Module)
+            import_category = isort_obj.place_module(package)
+            if import_category in ('FUTURE', 'STDLIB'):
                 std_imports.append((node, package))
-                wrong_import = extern_imports or local_imports
-                if not wrong_import:
-                    continue
+                wrong_import = extern_not_nested or local_not_nested
                 if self._is_fallback_import(node, wrong_import):
                     continue
-                self.add_message('wrong-import-order', node=node,
-                                 args=('standard import "%s"' % node.as_string(),
-                                       '"%s"' % wrong_import[0][0].as_string()))
-            else:
-                try:
-                    filename = file_from_modpath([package])
-                except ImportError:
-                    continue
-                if not filename:
-                    continue
-
-                filename = os.path.normcase(os.path.abspath(filename))
-                if not any(filename.startswith(path) for path in self._site_packages):
-                    local_imports.append((node, package))
-                    continue
+                if wrong_import and not nested:
+                    self.add_message('wrong-import-order', node=node,
+                                     args=('standard import "%s"' % node.as_string(),
+                                           '"%s"' % wrong_import[0][0].as_string()))
+            elif import_category in ('FIRSTPARTY', 'THIRDPARTY'):
                 extern_imports.append((node, package))
-                if not local_imports:
-                    continue
-                self.add_message('wrong-import-order', node=node,
-                                 args=('external import "%s"' % node.as_string(),
-                                       '"%s"' % local_imports[0][0].as_string()))
+                if not nested:
+                    extern_not_nested.append((node, package))
+                wrong_import = local_not_nested
+                if wrong_import and not nested:
+                    self.add_message('wrong-import-order', node=node,
+                                     args=('external import "%s"' % node.as_string(),
+                                           '"%s"' % wrong_import[0][0].as_string()))
+            elif import_category == 'LOCALFOLDER':
+                local_imports.append((node, package))
+                if not nested:
+                    local_not_nested.append((node, package))
         return std_imports, extern_imports, local_imports
 
-    def get_imported_module(self, importnode, modname):
+    def _get_imported_module(self, importnode, modname):
         try:
             return importnode.do_import_module(modname)
         except astroid.InferenceError as ex:
@@ -511,6 +575,9 @@ given file (report RP0402 must not be disabled)'}
             for submodule in _qualified_names(modname):
                 if submodule in self._ignored_modules:
                     return None
+
+            if not self.config.analyse_fallback_blocks and is_from_fallback_block(importnode):
+                return None
 
             if not node_ignores_exception(importnode, ImportError):
                 self.add_message("import-error", args=args, node=importnode)
@@ -586,8 +653,8 @@ given file (report RP0402 must not be disabled)'}
             contexts.append((root, None))
 
         for context, level in contexts:
-            for name, _ in node.names:
-                first = _get_first_import(node, context, name, basename, level)
+            for name, alias in node.names:
+                first = _get_first_import(node, context, name, basename, level, alias)
                 if first is not None:
                     self.add_message('reimported', node=node,
                                      args=(name, first.fromlineno))

@@ -1,17 +1,6 @@
-# Copyright (c) 2003-2013 LOGILAB S.A. (Paris, FRANCE).
-#
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of the GNU General Public License as published by the Free Software
-# Foundation; either version 2 of the License, or (at your option) any later
-# version.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along with
-# this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+# Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+# For details: https://github.com/PyCQA/pylint/blob/master/COPYING
+
 """Python code format's checker.
 
 By default try to follow Guido's style guide :
@@ -21,10 +10,10 @@ http://www.python.org/doc/essays/styleguide.html
 Some parts of the process_token method is based from The Tab Nanny std module.
 """
 
-import keyword
-import sys
-import tokenize
 from functools import reduce # pylint: disable=redefined-builtin
+import keyword
+import tokenize
+import sys
 
 import six
 from six.moves import zip, map, filter # pylint: disable=redefined-builtin
@@ -79,6 +68,9 @@ MSGS = {
     'C0304': ('Final newline missing',
               'missing-final-newline',
               'Used when the last line in a file is missing a newline.'),
+    'C0305': ('Trailing newlines',
+              'trailing-newlines',
+              'Used when there are trailing blank lines in a file.'),
     'W0311': ('Bad indentation. Found %s %s, expected %s',
               'bad-indentation',
               'Used when an unexpected number of indentation\'s tabulations or '
@@ -241,8 +233,12 @@ def _Offsets(*args):
 def _BeforeBlockOffsets(single, with_body):
     """Valid alternative indent offsets for continued lines before blocks.
 
-    :param single: Valid offset for statements on a single logical line.
-    :param with_body: Valid offset for statements on several lines.
+    :param int single: Valid offset for statements on a single logical line.
+    :param int with_body: Valid offset for statements on several lines.
+
+    :returns: A dictionary mapping indent offsets to a string representing
+        whether the indent if for a line or block.
+    :rtype: dict
     """
     return {single: SINGLE_LINE, with_body: WITH_BODY}
 
@@ -398,8 +394,8 @@ class ContinuedLineState(object):
         push_token relies on the caller to filter out those
         interesting tokens.
 
-        :param token: The concrete token
-        :param position: The position of the token in the stream.
+        :param int token: The concrete token
+        :param int position: The position of the token in the stream.
         """
         if _token_followed_by_eol(self._tokens, position):
             self._cont_stack.append(
@@ -736,6 +732,7 @@ class FormatChecker(BaseTokenChecker):
         self._visited_lines = {}
         token_handlers = self._prepare_token_dispatcher()
         self._last_line_ending = None
+        last_blank_line_num = 0
 
         self._current_line = ContinuedLineState(tokens, self.config)
         for idx, (tok_type, token, start, _, line) in enumerate(tokens):
@@ -772,6 +769,8 @@ class FormatChecker(BaseTokenChecker):
                 if len(indents) > 1:
                     del indents[-1]
             elif tok_type == tokenize.NL:
+                if not line.strip('\r\n'):
+                    last_blank_line_num = line_num
                 self._check_continued_indentation(TokenWrapper(tokens), idx+1)
                 self._current_line.next_physical_line()
             elif tok_type != tokenize.COMMENT:
@@ -807,6 +806,11 @@ class FormatChecker(BaseTokenChecker):
             self.add_message('too-many-lines',
                              args=(line_num, self.config.max_module_lines),
                              line=line)
+
+        # See if there are any trailing lines.  Do not complain about empty
+        # files like __init__.py markers.
+        if line_num == last_blank_line_num and line_num > 0:
+            self.add_message('trailing-newlines', line=line_num)
 
     def _check_line_ending(self, line_ending, line_num):
         # check if line endings are mixed

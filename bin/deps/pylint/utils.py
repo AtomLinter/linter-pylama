@@ -1,18 +1,6 @@
-# Copyright (c) 2003-2014 LOGILAB S.A. (Paris, FRANCE).
-# http://www.logilab.fr/ -- mailto:contact@logilab.fr
-#
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of the GNU General Public License as published by the Free Software
-# Foundation; either version 2 of the License, or (at your option) any later
-# version.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details
-#
-# You should have received a copy of the GNU General Public License along with
-# this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+# Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+# For details: https://github.com/PyCQA/pylint/blob/master/COPYING
+
 """some various utilities and helper classes, most of them used in the
 main pylint class
 """
@@ -24,9 +12,9 @@ import os
 from os.path import dirname, basename, splitext, exists, isdir, join, normpath
 import re
 import sys
-import tokenize
 import warnings
 import textwrap
+import tokenize
 
 import six
 from six.moves import zip  # pylint: disable=redefined-builtin
@@ -803,8 +791,22 @@ class ReportsHandlerMixIn(object):
             self.stats[key] = value
         return self.stats
 
+def _basename_in_blacklist_re(base_name, black_list_re):
+    """Determines if the basename is matched in a regex blacklist
 
-def expand_modules(files_or_modules, black_list):
+    :param str base_name: The basename of the file
+    :param list black_list_re: A collection of regex patterns to match against.
+        Successful matches are blacklisted.
+
+    :returns: `True` if the basename is blacklisted, `False` otherwise.
+    :rtype: bool
+    """
+    for file_pattern in black_list_re:
+        if file_pattern.match(base_name):
+            return True
+    return False
+
+def expand_modules(files_or_modules, black_list, black_list_re):
     """take a list of files/modules/packages and return the list of tuple
     (file, module name) which have to be actually checked
     """
@@ -840,6 +842,8 @@ def expand_modules(files_or_modules, black_list):
                 and '__init__.py' in filepath:
             for subfilepath in get_module_files(dirname(filepath), black_list):
                 if filepath == subfilepath:
+                    continue
+                if _basename_in_blacklist_re(basename(subfilepath), black_list_re):
                     continue
                 submodname = '.'.join(modpath_from_file(subfilepath))
                 result.append({'path': subfilepath, 'name': submodname,
@@ -988,11 +992,10 @@ def get_global_option(checker, option, default=None):
     return default
 
 
-def deprecated_option(shortname=None, opt_type=None, help_msg=None):
+def deprecated_option(shortname=None, opt_type=None, help_msg=None, deprecation_msg=None):
     def _warn_deprecated(option, optname, *args): # pylint: disable=unused-argument
-        msg = ("Warning: option %s is obsolete and "
-               "it is slated for removal in Pylint 1.6.\n")
-        sys.stderr.write(msg % (optname,))
+        if deprecation_msg:
+            sys.stderr.write(deprecation_msg % (optname,))
 
     option = {
         'help': help_msg,

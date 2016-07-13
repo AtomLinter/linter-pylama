@@ -1,19 +1,6 @@
-# Copyright (c) 2003-2013 LOGILAB S.A. (Paris, FRANCE).
-# http://www.logilab.fr/ -- mailto:contact@logilab.fr
-# Copyright (c) 2009-2010 Arista Networks, Inc.
-#
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of the GNU General Public License as published by the Free Software
-# Foundation; either version 2 of the License, or (at your option) any later
-# version.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along with
-# this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+# Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+# For details: https://github.com/PyCQA/pylint/blob/master/COPYING
+
 """basic checker for Python code"""
 
 import collections
@@ -46,7 +33,8 @@ from pylint.checkers.utils import (
     error_of_type,
     unimplemented_abstract_methods,
     has_known_bases,
-    safe_infer
+    safe_infer,
+    is_comprehension
     )
 from pylint.reporters.ureports.nodes import Table
 
@@ -73,15 +61,6 @@ TYPE_QNAME = "%s.type" % BUILTINS
 PY33 = sys.version_info >= (3, 3)
 PY3K = sys.version_info >= (3, 0)
 PY35 = sys.version_info >= (3, 5)
-BAD_FUNCTIONS = ['map', 'filter']
-if sys.version_info < (3, 0):
-    BAD_FUNCTIONS.append('input')
-
-# Some hints regarding the use of bad builtins.
-BUILTIN_HINTS = {
-    'map': 'Using a list comprehension can be clearer.',
-}
-BUILTIN_HINTS['filter'] = BUILTIN_HINTS['map']
 
 # Name categories that are always consistent with all naming conventions.
 EXEMPT_NAME_CATEGORIES = set(('exempt', 'ignore'))
@@ -163,17 +142,38 @@ def _is_multi_naming_match(match, node_type, confidence):
 
 
 if sys.version_info < (3, 0):
-    PROPERTY_CLASSES = set(('__builtin__.property', 'abc.abstractproperty'))
+    BUILTIN_PROPERTY = '__builtin__.property'
 else:
-    PROPERTY_CLASSES = set(('builtins.property', 'abc.abstractproperty'))
+    BUILTIN_PROPERTY = 'builtins.property'
 
 
-def _determine_function_name_type(node):
+def _get_properties(config):
+    """Returns a tuple of property classes and names.
+
+    Property classes are fully qualified, such as 'abc.abstractproperty' and
+    property names are the actual names, such as 'abstract_property'.
+    """
+    property_classes = set((BUILTIN_PROPERTY,))
+    property_names = set()  # Not returning 'property', it has its own check.
+    if config is not None:
+        property_classes.update(config.property_classes)
+        property_names.update((prop.rsplit('.', 1)[-1]
+                               for prop in config.property_classes))
+    return property_classes, property_names
+
+
+def _determine_function_name_type(node, config=None):
     """Determine the name type whose regex the a function's name should match.
 
     :param node: A function node.
+    :type node: astroid.node_classes.NodeNG
+    :param config: Configuration from which to pull additional property classes.
+    :type config: :class:`optparse.Values`
+
     :returns: One of ('function', 'method', 'attr')
+    :rtype: str
     """
+    property_classes, property_names = _get_properties(config)
     if not node.is_method():
         return 'function'
     if node.decorators:
@@ -185,9 +185,9 @@ def _determine_function_name_type(node):
         # or @abc.abstractproperty), the name type is 'attr'.
         if (isinstance(decorator, astroid.Name) or
                 (isinstance(decorator, astroid.Attribute) and
-                 decorator.attrname == 'abstractproperty')):
+                 decorator.attrname in property_names)):
             infered = safe_infer(decorator)
-            if infered and infered.qname() in PROPERTY_CLASSES:
+            if infered and infered.qname() in property_classes:
                 return 'attr'
         # If the function is decorated using the prop_method.{setter,getter}
         # form, treat it like an attribute as well.
@@ -661,12 +661,6 @@ functions, methods
                   'usage. Consider using `ast.literal_eval` for safely evaluating '
                   'strings containing Python expressions '
                   'from untrusted sources. '),
-        'W0141': ('Used builtin function %s',
-                  'bad-builtin',
-                  'Used when a black listed builtin function is used (see the '
-                  'bad-function option). Usual black listed functions are the ones '
-                  'like map, or filter , where Python offers now some cleaner '
-                  'alternative like list comprehension.'),
         'W0150': ("%s statement in finally block may swallow exception",
                   'lost-exception',
                   'Used when a break or a return statement is found inside the '
@@ -701,14 +695,8 @@ functions, methods
     options = (('required-attributes',
                 deprecated_option(opt_type='csv',
                                   help_msg="Required attributes for module. "
-                                           "This option is obsolete.")),
-
-               ('bad-functions',
-                {'default' : BAD_FUNCTIONS,
-                 'type' :'csv', 'metavar' : '<builtin function names>',
-                 'help' : 'List of builtins function names that should not be '
-                          'used, separated by a comma'}
-               ),
+                                           "This option is obsolete.",
+                                  deprecation_msg="This option %r will be removed in Pylint 2.0")),
               )
     reports = (('RP0101', 'Statistics by type', report_by_type_stats),)
 
@@ -979,8 +967,7 @@ functions, methods
         """just print a warning on exec statements"""
         self.add_message('exec-used', node=node)
 
-    @check_messages('bad-builtin', 'eval-used',
-                    'exec-used', 'bad-reversed-sequence')
+    @check_messages('eval-used', 'exec-used', 'bad-reversed-sequence')
     def visit_call(self, node):
         """visit a CallFunc node -> check if this is not a blacklisted builtin
         call and check for * or ** use
@@ -997,13 +984,6 @@ functions, methods
                     self._check_reversed(node)
                 elif name == 'eval':
                     self.add_message('eval-used', node=node)
-                if name in self.config.bad_functions:
-                    hint = BUILTIN_HINTS.get(name)
-                    if hint:
-                        args = "%r. %s" % (name, hint)
-                    else:
-                        args = repr(name)
-                    self.add_message('bad-builtin', node=node, args=args)
 
     @check_messages('assert-on-tuple')
     def visit_assert(self, node):
@@ -1196,6 +1176,14 @@ class NameChecker(_BasicChecker):
                 {'default': False, 'type' : 'yn', 'metavar' : '<y_or_n>',
                  'help': 'Include a hint for the correct naming format with invalid-name'}
                ),
+               ('property-classes',
+                {'default': ('abc.abstractproperty',),
+                 'type': 'csv',
+                 'metavar': '<decorator names>',
+                 'help': 'List of decorators that produce properties, such as '
+                         'abc.abstractproperty. Add to this list to register '
+                         'other decorators that produce valid properties.'}
+               ),
               ) + _create_naming_options()
 
 
@@ -1259,7 +1247,8 @@ class NameChecker(_BasicChecker):
             confidence = (INFERENCE if has_known_bases(node.parent.frame())
                           else INFERENCE_FAILURE)
 
-        self._check_name(_determine_function_name_type(node),
+        self._check_name(_determine_function_name_type(node,
+                                                       config=self.config),
                          node.name, node, confidence)
         # Check argument names
         args = node.args.args
@@ -1510,6 +1499,11 @@ class RecommandationChecker(_BasicChecker):
                       'Emitted when code that iterates with range and len is '
                       'encountered. Such code can be simplified by using the '
                       'enumerate builtin.'),
+            'C0201': ('Consider iterating the dictionary directly instead of calling .keys()',
+                      'consider-iterating-dictionary',
+                      'Emitted when the keys of a dictionary are iterated through the .keys() '
+                      'method. It is enough to just iterate through the dictionary itself, as '
+                      'in "for key in dictionary".'),
            }
 
     @staticmethod
@@ -1518,6 +1512,25 @@ class RecommandationChecker(_BasicChecker):
         if not inferred:
             return False
         return is_builtin_object(inferred) and inferred.name == function
+
+    @check_messages('consider-iterating-dictionary')
+    def visit_call(self, node):
+        inferred = safe_infer(node.func)
+        if inferred in (astroid.YES, None):
+            return
+
+        if not isinstance(inferred, astroid.BoundMethod):
+            return
+        if not isinstance(inferred.bound, astroid.Dict) or inferred.name != 'keys':
+            return
+
+        # Check if the statement is what we're expecting to have.
+        statement = node.statement()
+        if isinstance(statement, astroid.Expr):
+            statement = statement.value
+
+        if isinstance(statement, astroid.For) or is_comprehension(statement):
+            self.add_message('consider-iterating-dictionary', node=node)
 
     @check_messages('consider-using-enumerate')
     def visit_for(self, node):

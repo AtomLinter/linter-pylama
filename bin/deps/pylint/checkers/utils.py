@@ -1,23 +1,11 @@
+# Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+# For details: https://github.com/PyCQA/pylint/blob/master/COPYING
+
 # pylint: disable=W0611
-#
-# Copyright (c) 2003-2013 LOGILAB S.A. (Paris, FRANCE).
-# http://www.logilab.fr/ -- mailto:contact@logilab.fr
-#
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of the GNU General Public License as published by the Free Software
-# Foundation; either version 2 of the License, or (at your option) any later
-# version.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along with
-# this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 """some functions that may be useful for various checkers
 """
 import functools
+import itertools
 import re
 import sys
 import string
@@ -79,7 +67,7 @@ _SPECIAL_METHODS_PARAMS = {
         '__itruediv__', '__ifloordiv__', '__imod__', '__ilshift__',
         '__irshift__', '__iand__', '__ixor__', '__ior__', '__ipow__',
         '__setstate__', '__reduce_ex__', '__deepcopy__', '__cmp__',
-        '__matmul__', '__rmatmul__'),
+        '__matmul__', '__rmatmul__', '__div__'),
 
     2: ('__setattr__', '__get__', '__set__', '__setitem__'),
 
@@ -410,12 +398,11 @@ def is_attr_private(attrname):
 
 def get_argument_from_call(callfunc_node, position=None, keyword=None):
     """Returns the specified argument from a function call.
-
-    :param callfunc_node: Node representing a function call to check.
+    :param astroid.Call callfunc_node: Node representing a function call to check.
     :param int position: position of the argument.
     :param str keyword: the keyword of the argument.
-
     :returns: The node representing the argument, None if the argument is not found.
+    :rtype: astroid.Name
     :raises ValueError: if both position and keyword are None.
     :raises NoSuchArgumentError: if no argument at the provided position or with
     the provided keyword.
@@ -451,26 +438,24 @@ def error_of_type(handler, error_type):
     the given error_type.
 
     The *handler* parameter is a node, representing an ExceptHandler node.
-    The *error_type* can be an exception, such as AttributeError, or it
-    can be a tuple of errors.
+    The *error_type* can be an exception, such as AttributeError,
+    the name of an exception, or it can be a tuple of errors.
     The function will return True if the handler catches any of the
     given errors.
     """
+    def stringify_error(error):
+        if not isinstance(error, six.string_types):
+            return error.__name__
+        return error
+
     if not isinstance(error_type, tuple):
         error_type = (error_type, )
-    expected_errors = {error.__name__ for error in error_type}
+    expected_errors = {stringify_error(error) for error in error_type}
     if not handler.type:
         # bare except. While this indeed catches anything, if the desired errors
         # aren't specified directly, then we just ignore it.
         return False
     return handler.catch(expected_errors)
-
-
-def is_import_error(handler):
-    warnings.warn("This function is deprecated in the favour of "
-                  "error_of_type. It will be removed in Pylint 1.6.",
-                  DeprecationWarning, stacklevel=2)
-    return error_of_type(handler, ImportError)
 
 
 def decorated_with_property(node):
@@ -561,6 +546,43 @@ def unimplemented_abstract_methods(node, is_abstract_cb=None):
     return visited
 
 
+def _import_node_context(node):
+    current = node
+    ignores = (astroid.ExceptHandler, astroid.TryExcept)
+    while current and not isinstance(current.parent, ignores):
+        current = current.parent
+
+    if current and isinstance(current.parent, ignores):
+        return current.parent
+    return None
+
+
+def is_from_fallback_block(node):
+    """Check if the given node is from a fallback import block."""
+    context = _import_node_context(node)
+    if not context:
+        return False
+
+    if isinstance(context, astroid.ExceptHandler):
+        other_body = context.parent.body
+        handlers = context.parent.handlers
+    else:
+        other_body = itertools.chain.from_iterable(
+            handler.body for handler in context.handlers)
+        handlers = context.handlers
+
+    has_fallback_imports = any(isinstance(import_node, (astroid.ImportFrom, astroid.Import))
+                               for import_node in other_body)
+    ignores_import_error = _except_handlers_ignores_exception(handlers, ImportError)
+    return ignores_import_error or has_fallback_imports
+
+
+def _except_handlers_ignores_exception(handlers, exception):
+    func = functools.partial(error_of_type,
+                             error_type=(exception, ))
+    return any(map(func, handlers))
+
+
 def node_ignores_exception(node, exception):
     """Check if the node is in a TryExcept which handles the given exception."""
     current = node
@@ -568,11 +590,8 @@ def node_ignores_exception(node, exception):
     while current and not isinstance(current.parent, ignores):
         current = current.parent
 
-    func = functools.partial(error_of_type,
-                             error_type=(exception, ))
     if current and isinstance(current.parent, astroid.TryExcept):
-        if any(map(func, current.parent.handlers)):
-            return True
+        return _except_handlers_ignores_exception(current.parent.handlers, exception)
     return False
 
 
