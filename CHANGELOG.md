@@ -1,3 +1,8 @@
+# 0.5.0
+* Mark (F)ailed errors as errors
+* Update pylint to version 1.6.1
+* Migrate to pycodestyle/pydocstyle
+
 # 0.4.4
 * Fix #39 (UNC paths) for lintOnSave
 * Remove unused import

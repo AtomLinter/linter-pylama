@@ -33,8 +33,8 @@ module.exports =
     usePyflakes:
       type: 'boolean'
       default: true
-      title: 'Use PyFlakes'
-      description: 'Use PyFlakes checker.'
+      title: 'Use Pyflakes'
+      description: 'Use Pyflakes checker.'
     usePep257:
       type: 'boolean'
       default: true
