@@ -7,7 +7,7 @@ regex = '(?<file_>.+):' +
   '(?<line>\\d+):' +
   '(?<col>\\d+):' +
   '\\s+' +
-  '(((?<type>[ECDFNW])(?<file>\\d+)(:\\s+|\\s+))|(.*?))' +
+  '(((?<type>[ECDFINRW])(?<file>\\d+)(:\\s+|\\s+))|(.*?))' +
   '(?<message>.+)'
 
 class LinterPylama
