@@ -1,3 +1,7 @@
+# 0.5.2
+* Fix #41
+* Add R and I error codes
+
 # 0.5.0
 * Mark (F)ailed errors as errors
 * Update pylint to version 1.6.1
