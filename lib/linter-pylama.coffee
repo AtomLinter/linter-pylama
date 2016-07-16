@@ -8,8 +8,7 @@ regex = '(?<file_>.+):' +
   '(?<col>\\d+):' +
   '\\s+' +
   '(((?<type>[ECDFNW])(?<file>\\d+)(:\\s+|\\s+))|(.*?))' +
-  '(?<message>.+)' +
-  '(\r)?\n'
+  '(?<message>.+)'
 
 class LinterPylama
   @pylamaPath: ''
