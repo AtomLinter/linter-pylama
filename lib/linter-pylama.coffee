@@ -138,7 +138,7 @@ class LinterPylama
 
       linters = [usePyFlakes, usePyLint, useMcCabe, usePEP8, usePEP257].filter (e) -> e isnt ''
       args.push '--linters'
-      if linters.length then args.push do linters.join else args.push 'nane'
+      if linters.length then args.push do linters.join else args.push 'none'
 
     args
 
