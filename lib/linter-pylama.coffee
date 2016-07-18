@@ -157,15 +157,15 @@ class LinterPylama
       args: args
       options:
         env: env
-        stream: 'stdout'
-        ignoreExitCode: true
-        throwOnStdErr: false
+        stream: 'both'
 
 
   lintFile: (lintInfo, textEditor) ->
-    helpers.exec(lintInfo.command, lintInfo.args, lintInfo.options).then (output) ->
-      console.log output if do atom.inDevMode
-      helpers.parse(output, regex).map (message) ->
+    helpers.exec(lintInfo.command, lintInfo.args, lintInfo.options).then (output) =>
+      if output['stderr']
+        atom.notifications.addWarning output['stderr']
+      console.log output['stdout'] if do atom.inDevMode
+      helpers.parse(output['stdout'], regex).map (message) ->
         code = "#{message.type}#{message.filePath}"
         message.type = if message.type in ['E', 'F']
           'Error'
