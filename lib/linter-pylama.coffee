@@ -73,18 +73,21 @@ class LinterPylama
     return @lintOnFly_
 
 
-  initEnv: (cwd) ->
+  initEnv: (filePath, projectPath) ->
     env = Object.create process.env
     pythonPath = if env['PYTHONPATH'] then env.PYTHONPATH else ''
     pythonPath = pythonPath.split path.delimiter
     pythonPath = pythonPath.filter(Boolean)
 
-    if cwd and cwd not in pythonPath
-      pythonPath.push cwd
+    if filePath and filePath not in pythonPath
+      pythonPath.push filePath
 
-    process_path = path.normalize env.PWD
-    if process_path and process_path not in pythonPath
-      pythonPath.push process_path
+    if projectPath and projectPath not in pythonPath
+      pythonPath.push projectPath
+
+    processPath = path.normalize env.PWD
+    if processPath and processPath not in pythonPath
+      pythonPath.push processPath
 
     env.PYTHONPATH = pythonPath.join path.delimiter
     env
@@ -96,8 +99,8 @@ class LinterPylama
 
     if pylamaVersion is 'external' and pylamaPath isnt @pylamaPath
       if /^(pylama|pylama\.exe)$/.test pylamaPath
-        process_path = process.env.PATH or process.env.Path
-        process_path.split(path.delimiter).forEach (dir) =>
+        processPath = process.env.PATH or process.env.Path
+        processPath.split(path.delimiter).forEach (dir) =>
           tmp = path.join dir, pylamaPath
           if fs.existsSync tmp
             pylamaPath = tmp
@@ -147,9 +150,10 @@ class LinterPylama
   makeLintInfo: (fileName, originFileName) =>
     if not originFileName
       originFileName = fileName
-    curDir = path.normalize path.dirname(originFileName)
-    env = @initEnv curDir
-    args = @initArgs curDir
+    filePath = path.normalize path.dirname(originFileName)
+    projectPath = atom.project.relativizePath(originFileName)[0]
+    env = @initEnv filePath, projectPath
+    args = @initArgs filePath
     args.push fileName
     console.log "#{@pylamaPath} #{args}" if do atom.inDevMode
     info =
