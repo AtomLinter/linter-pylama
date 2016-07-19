@@ -74,19 +74,20 @@ class LinterPylama
 
 
   initEnv: (cwd) ->
-    pythonPath = if process.env['PYTHONPATH'] then process.env.PYTHONPATH else ''
+    env = Object.create process.env
+    pythonPath = if env['PYTHONPATH'] then env.PYTHONPATH else ''
     pythonPath = pythonPath.split path.delimiter
     pythonPath = pythonPath.filter(Boolean)
 
     if cwd and cwd not in pythonPath
       pythonPath.push cwd
 
-    process_path = process.env.PWD
+    process_path = path.normalize env.PWD
     if process_path and process_path not in pythonPath
       pythonPath.push process_path
 
-    process.env.PYTHONPATH = pythonPath.join path.delimiter
-    process.env
+    env.PYTHONPATH = pythonPath.join path.delimiter
+    env
 
 
   initPylama: =>
@@ -146,7 +147,7 @@ class LinterPylama
   makeLintInfo: (fileName, originFileName) =>
     if not originFileName
       originFileName = fileName
-    curDir = path.dirname originFileName
+    curDir = path.normalize path.dirname(originFileName)
     env = @initEnv curDir
     args = @initArgs curDir
     args.push fileName
