@@ -1,3 +1,9 @@
+# 0.5.3
+* Update atom-linter to version 7.0.0
+* Add project path into PYTHONPATH
+* Show linters errors from stderr
+* Fix typo
+
 # 0.5.2
 * Fix #41
 * Add R and I error codes
