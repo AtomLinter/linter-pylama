@@ -11,9 +11,9 @@ module.exports =
       description: "Enable linting on the fly. Need to restart Atom."
     ignoreErrorsAndWarnings:
       type: 'string'
-      default: ''
+      default: 'D203,D212,D213,D404'
       description: 'Comma-separated list of errors and warnings.
-      Example: E111,E114,D101,D102,DW0311'
+      Example: ED203,D212,D213,D404,111,E114,D101,D102,DW0311'
     skipFiles:
       type: 'string'
       default: ''
