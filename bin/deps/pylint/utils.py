@@ -1,3 +1,5 @@
+# Copyright (c) 2003-2016 LOGILAB S.A. (Paris, FRANCE).
+# http://www.logilab.fr/ -- mailto:contact@logilab.fr
 # Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 # For details: https://github.com/PyCQA/pylint/blob/master/COPYING
 
@@ -1089,7 +1091,7 @@ def _comment(string):
 def _format_option_value(optdict, value):
     """return the user input's value from a 'compiled' value"""
     if isinstance(value, (list, tuple)):
-        value = ','.join(value)
+        value = ','.join(_format_option_value(optdict, item) for item in value)
     elif isinstance(value, dict):
         value = ','.join('%s:%s' % (k, v) for k, v in value.items())
     elif hasattr(value, 'match'): # optdict.get('type') == 'regexp'

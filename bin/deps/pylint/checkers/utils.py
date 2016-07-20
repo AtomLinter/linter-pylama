@@ -1,3 +1,5 @@
+# Copyright (c) 2003-2016 LOGILAB S.A. (Paris, FRANCE).
+# http://www.logilab.fr/ -- mailto:contact@logilab.fr
 # Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 # For details: https://github.com/PyCQA/pylint/blob/master/COPYING
 
@@ -430,7 +432,7 @@ def inherit_from_std_ex(node):
             and node.root().name == EXCEPTIONS_MODULE:
         return True
     return any(inherit_from_std_ex(parent)
-               for parent in node.ancestors(recurs=False))
+               for parent in node.ancestors(recurs=True))
 
 def error_of_type(handler, error_type):
     """
