@@ -171,13 +171,15 @@ class LinterPylama
         atom.notifications.addWarning output['stderr']
       console.log output['stdout'] if do atom.inDevMode
       helpers.parse(output['stdout'], regex).map (message) ->
+        message.type = '' if not message.type
+        message.filePath = '' if not message.filePath
         code = "#{message.type}#{message.filePath}"
         message.type = if message.type in ['E', 'F']
           'Error'
         else
           'Warning'
         message.filePath = lintInfo.fileName
-        message.text = "#{code} #{message.text}"
+        message.text = if code then "#{code} #{message.text}" else "#{message.text}"
         line = message.range[0][0]
         col = message.range[0][1]
         editorLine = textEditor.buffer.lines[line]
