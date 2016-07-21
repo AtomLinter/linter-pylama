@@ -1,3 +1,9 @@
+# 0.5.4
+* Add specs (close #23)
+* Fix and close #41
+* Fix and close #37
+* Update pylint to version 1.6.4
+
 # 0.5.3
 * Update atom-linter to version 7.0.0
 * Add project path into PYTHONPATH
