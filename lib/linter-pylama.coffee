@@ -85,9 +85,10 @@ class LinterPylama
     if projectPath and projectPath not in pythonPath
       pythonPath.push projectPath
 
-    processPath = path.normalize env.PWD
-    if processPath and processPath not in pythonPath
-      pythonPath.push processPath
+    if env.PWD
+      processPath = path.normalize env.PWD
+      if processPath and processPath not in pythonPath
+        pythonPath.push processPath
 
     env.PYTHONPATH = pythonPath.join path.delimiter
     env
