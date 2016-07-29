@@ -1,4 +1,4 @@
-# linter-pylama
+# linter-pylama [![Build Status](https://travis-ci.org/AtomLinter/linter-pylama.svg?branch=master)](https://travis-ci.org/AtomLinter/linter-pylama)
 
 This package will lint your opened Python-files in Atom, using [pylama](https://github.com/klen/pylama#-pylama) (wrapper for Pylint, pycodestyle/pep8, pydocstyle/pep257, Pyflakes and McCabe).
 
