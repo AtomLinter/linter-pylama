@@ -16,7 +16,7 @@ try:
 except ImportError:   # Python 2.5
     from flake8.util import ast, iter_child_nodes
 
-__version__ = '0.5.1'
+__version__ = '0.5.2'
 
 
 class ASTVisitor(object):
@@ -307,7 +307,7 @@ def _read(filename):
             # Fall back if file encoding is improperly declared
             with open(filename, encoding='latin-1') as f:
                 return f.read()
-        with open(filename, 'r', encoding=encoding):
+        with open(filename, 'r', encoding=encoding) as f:
             return f.read()
 
 
