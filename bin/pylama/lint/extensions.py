@@ -36,7 +36,7 @@ except ImportError:
     pass
 
 try:
-    from pylama_pylint import Linter
+    from pylama.lint.pylama_pylint import Linter
     LINTERS['pylint'] = Linter()
 except ImportError:
     pass
