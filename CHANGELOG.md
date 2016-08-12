@@ -1,3 +1,8 @@
+# 0.5.5
+* Don't import external linters
+* Fix import Linter from pylam_pylint
+* Update mccabe to version 0.5.2
+
 # 0.5.4
 * Add specs (close #23)
 * Fix and close #41
