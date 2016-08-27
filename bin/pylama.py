@@ -5,7 +5,12 @@ import os
 import re
 import sys
 
+python_path = os.environ.get('PYTHONPATH', '').split(os.pathsep)
+sys.path = [p for p in sys.path if p not in python_path]
+sys.path.extend(python_path)
+
 from pylama.main import shell
+
 
 if __name__ == '__main__':
     try:
