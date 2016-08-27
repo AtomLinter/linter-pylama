@@ -1,3 +1,7 @@
+# 0.5.8
+* Reorder sys.path. Fix and close #48
+* Update atom-linter to version 8.0.0
+
 # 0.5.7
 * Don't import external linters
 * Fix import Linter from pylam_pylint
