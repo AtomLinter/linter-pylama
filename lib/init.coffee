@@ -1,25 +1,50 @@
 module.exports =
   config:
+    pylamaVersion:
+      type: 'string'
+      default: 'internal'
+      enum: ['external', 'internal']
+      description: 'Switch between internal Pylama (with Virtualenv detection
+      and other cool things) or external stable Pylama (do not forget to
+      specify executable path).'
+      order: 0
     executablePath:
       type: 'string'
       default: 'pylama'
       description: 'Excutable path for external Pylama.
       Example: /usr/local/bin/pylama'
-    lintOnFly:
-      type: 'boolean'
-      default: true
-      description: "Enable linting on the fly. Need to restart Atom."
+      order: 1
+    configFileLoad:
+      type: 'string'
+      default: 'Don\'t use pylama config'
+      enum: [
+        'Don\'t use pylama config',
+        'Use pylama config']
+      title: 'Use Pylama configuration file'
+      order: 2
+    configFileName:
+      type: 'string'
+      default: 'pylama.ini'
+      title: 'Configuration file name'
+      order: 3
     ignoreErrorsAndWarnings:
       type: 'string'
       default: 'D203,D212,D213,D404'
       description: 'Comma-separated list of errors and warnings.
       Example: ED203,D212,D213,D404,111,E114,D101,D102,DW0311'
+      order: 4
     skipFiles:
       type: 'string'
       default: ''
       description: 'Skip files by masks.
       Comma-separated list of a file names.
       Example: */messages.py,*/__init__.py'
+      order: 5
+    lintOnFly:
+      type: 'boolean'
+      default: true
+      description: "Enable linting on the fly. Need to restart Atom."
+      order: 6
     useMccabe:
       type: 'boolean'
       default: true
@@ -47,24 +72,7 @@ module.exports =
       description: 'Use PyLint linter. May be unstable for internal Pylama.
       For use with external Pylama you should install pylama_pylint module
       ("pip install pylama-pylint").'
-    configFileLoad:
-      type: 'string'
-      default: 'Don\'t use pylama config'
-      enum: [
-        'Don\'t use pylama config',
-        'Use pylama config']
-      title: 'Use Pylama configuration file'
-    configFileName:
-      type: 'string'
-      default: 'pylama.ini'
-      title: 'Configuration file name'
-    pylamaVersion:
-      type: 'string'
-      default: 'internal'
-      enum: ['external', 'internal']
-      description: 'Switch between internal Pylama (with Virtualenv detection
-      and other cool things) or external stable Pylama (do not forget to
-      specify executable path).'
+
 
   activate: ->
     require('atom-package-deps').install 'linter-pylama'
