@@ -1,3 +1,7 @@
+# 0.6.0
+* Fix and close #50
+* Update internal pyflakes to version 1.3.0
+
 # 0.5.8
 * Reorder sys.path. Fix and close #48
 * Update atom-linter to version 8.0.0
