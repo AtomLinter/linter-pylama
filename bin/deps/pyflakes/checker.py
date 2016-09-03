@@ -12,6 +12,7 @@ import sys
 PY2 = sys.version_info < (3, 0)
 PY32 = sys.version_info < (3, 3)    # Python 2.5 to 3.2
 PY33 = sys.version_info < (3, 4)    # Python 2.5 to 3.3
+PY34 = sys.version_info < (3, 5)    # Python 2.5 to 3.4
 try:
     sys.pypy_version_info
     PYPY = True
@@ -55,6 +56,11 @@ else:
         if isinstance(n, ast.Try):
             return [n.body + n.orelse] + [[hdl] for hdl in n.handlers]
 
+if PY34:
+    LOOP_TYPES = (ast.While, ast.For)
+else:
+    LOOP_TYPES = (ast.While, ast.For, ast.AsyncFor)
+
 
 class _FieldsOrder(dict):
     """Fix order of AST node fields."""
@@ -75,6 +81,17 @@ class _FieldsOrder(dict):
         return fields
 
 
+def counter(items):
+    """
+    Simplest required implementation of collections.Counter. Required as 2.6
+    does not have Counter in collections.
+    """
+    results = {}
+    for item in items:
+        results[item] = results.get(item, 0) + 1
+    return results
+
+
 def iter_child_nodes(node, omit=None, _fields_order=_FieldsOrder()):
     """
     Yield all direct child nodes of *node*, that is, all fields that
@@ -89,6 +106,33 @@ def iter_child_nodes(node, omit=None, _fields_order=_FieldsOrder()):
         elif isinstance(field, list):
             for item in field:
                 yield item
+
+
+def convert_to_value(item):
+    if isinstance(item, ast.Str):
+        return item.s
+    elif hasattr(ast, 'Bytes') and isinstance(item, ast.Bytes):
+        return item.s
+    elif isinstance(item, ast.Tuple):
+        return tuple(convert_to_value(i) for i in item.elts)
+    elif isinstance(item, ast.Num):
+        return item.n
+    elif isinstance(item, ast.Name):
+        result = VariableKey(item=item)
+        constants_lookup = {
+            'True': True,
+            'False': False,
+            'None': None,
+        }
+        return constants_lookup.get(
+            result.name,
+            result,
+        )
+    elif (not PY33) and isinstance(item, ast.NameConstant):
+        # None, True, False are nameconstants in python3, but names in 2
+        return item.value
+    else:
+        return UnhandledKeyType()
 
 
 class Binding(object):
@@ -125,6 +169,31 @@ class Definition(Binding):
     """
     A binding that defines a function or a class.
     """
+
+
+class UnhandledKeyType(object):
+    """
+    A dictionary key of a type that we cannot or do not check for duplicates.
+    """
+
+
+class VariableKey(object):
+    """
+    A dictionary key which is a variable.
+
+    @ivar item: The variable AST object.
+    """
+    def __init__(self, item):
+        self.name = item.id
+
+    def __eq__(self, compare):
+        return (
+            compare.__class__ == self.__class__
+            and compare.name == self.name
+        )
+
+    def __hash__(self):
+        return hash(self.name)
 
 
 class Importation(Definition):
@@ -235,7 +304,7 @@ class ImportationFrom(Importation):
 
 
 class StarImportation(Importation):
-    """A binding created by an 'from x import *' statement."""
+    """A binding created by a 'from x import *' statement."""
 
     def __init__(self, name, source):
         super(StarImportation, self).__init__('*', source)
@@ -730,7 +799,7 @@ class Checker(object):
             return
 
         if on_conditional_branch():
-            # We can not predict if this conditional branch is going to
+            # We cannot predict if this conditional branch is going to
             # be executed.
             return
 
@@ -849,7 +918,7 @@ class Checker(object):
     PASS = ignore
 
     # "expr" type nodes
-    BOOLOP = BINOP = UNARYOP = IFEXP = DICT = SET = \
+    BOOLOP = BINOP = UNARYOP = IFEXP = SET = \
         COMPARE = CALL = REPR = ATTRIBUTE = SUBSCRIPT = \
         STARRED = NAMECONSTANT = handleChildren
 
@@ -869,6 +938,42 @@ class Checker(object):
 
     # additional node types
     COMPREHENSION = KEYWORD = FORMATTEDVALUE = handleChildren
+
+    def DICT(self, node):
+        # Complain if there are duplicate keys with different values
+        # If they have the same value it's not going to cause potentially
+        # unexpected behaviour so we'll not complain.
+        keys = [
+            convert_to_value(key) for key in node.keys
+        ]
+
+        key_counts = counter(keys)
+        duplicate_keys = [
+            key for key, count in key_counts.items()
+            if count > 1
+        ]
+
+        for key in duplicate_keys:
+            key_indices = [i for i, i_key in enumerate(keys) if i_key == key]
+
+            values = counter(
+                convert_to_value(node.values[index])
+                for index in key_indices
+            )
+            if any(count == 1 for value, count in values.items()):
+                for key_index in key_indices:
+                    key_node = node.keys[key_index]
+                    if isinstance(key, VariableKey):
+                        self.report(messages.MultiValueRepeatedKeyVariable,
+                                    key_node,
+                                    key.name)
+                    else:
+                        self.report(
+                            messages.MultiValueRepeatedKeyLiteral,
+                            key_node,
+                            key,
+                        )
+        self.handleChildren(node)
 
     def ASSERT(self, node):
         if isinstance(node.test, ast.Tuple) and node.test.elts != []:
@@ -943,7 +1048,7 @@ class Checker(object):
         n = node
         while hasattr(n, 'parent'):
             n, n_child = n.parent, n
-            if isinstance(n, (ast.While, ast.For)):
+            if isinstance(n, LOOP_TYPES):
                 # Doesn't apply unless it's in the loop itself
                 if n_child not in n.orelse:
                     return
