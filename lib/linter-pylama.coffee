@@ -74,23 +74,21 @@ class LinterPylama
 
 
   initEnv: (filePath, projectPath) ->
-    env = Object.create process.env
-    pythonPath = if env['PYTHONPATH'] then env.PYTHONPATH else ''
-    pythonPath = pythonPath.split path.delimiter
-    pythonPath = pythonPath.filter(Boolean)
+    pythonPath = []
 
-    if filePath and filePath not in pythonPath
+    if filePath
       pythonPath.push filePath
 
     if projectPath and projectPath not in pythonPath
       pythonPath.push projectPath
 
+    env = Object.create process.env
     if env.PWD
       processPath = path.normalize env.PWD
       if processPath and processPath not in pythonPath
         pythonPath.push processPath
 
-    env.PYTHONPATH = pythonPath.join path.delimiter
+    env.PYLAMA = pythonPath.join path.delimiter
     env
 
 
