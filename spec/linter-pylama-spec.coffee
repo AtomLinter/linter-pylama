@@ -47,7 +47,7 @@ describe 'Tpe pylama provider for Linter', ->
         lint(editor).then (results) ->
           messages = results
       runs ->
-        expect(messages.length).toEqual 9
+        expect(messages.length).toEqual 8
 
     it 'finds the right things to complain about', ->
       messages = null
@@ -56,14 +56,13 @@ describe 'Tpe pylama provider for Linter', ->
           messages = data
       runs ->
         err0 = "D100 Missing docstring in public module [pep257]"
-        err1 = "Invalid syntax: ! [mccabe]"
-        err2 = "invalid syntax [pyflakes]"
-        err3 = "E701 multiple statements on one line (colon) [pep8]"
-        err4 = "E203 whitespace before ':' [pep8]"
-        err5 = "E231 missing whitespace after ':' [pep8]"
-        err6 = "E225 missing whitespace around operator [pep8]"
+        err1 = "E0100 SyntaxError: invalid syntax [pylama]"
+        err2 = "E701 multiple statements on one line (colon) [pep8]"
+        err3 = "E203 whitespace before ':' [pep8]"
+        err4 = "E231 missing whitespace after ':' [pep8]"
+        err5 = "E225 missing whitespace around operator [pep8]"
+        err6 = "E302 expected 2 blank lines, found 1 [pep8]"
         err7 = "D101 Missing docstring in public class [pep257]"
-        err8 = "E302 expected 2 blank lines, found 1 [pep8]"
 
         expect(messages[0].text).toBe(err0)
         expect(messages[0].range).toEqual([[0,0], [0,1]])
@@ -72,31 +71,31 @@ describe 'Tpe pylama provider for Linter', ->
 
         expect(messages[1].text).toBe(err1)
         expect(messages[1].range).toEqual([[0,0], [0,1]])
-        expect(messages[1].type).toBe('Warning')
+        expect(messages[1].type).toBe('Error')
         expect(messages[1].filePath).toMatch(badPath)
 
         expect(messages[2].text).toBe(err2)
-        expect(messages[2].range).toEqual([[0,0], [0,1]])
-        expect(messages[2].type).toBe('Warning')
+        expect(messages[2].range).toEqual([[2,2], [2,3]])
+        expect(messages[2].type).toBe('Error')
         expect(messages[2].filePath).toMatch(badPath)
 
         expect(messages[3].text).toBe(err3)
-        expect(messages[3].range).toEqual([[2,2], [2,3]])
+        expect(messages[3].range).toEqual([[2,1], [2,4]])
         expect(messages[3].type).toBe('Error')
         expect(messages[3].filePath).toMatch(badPath)
 
         expect(messages[4].text).toBe(err4)
-        expect(messages[4].range).toEqual([[2,1], [2,4]])
+        expect(messages[4].range).toEqual([[2,2], [2,3]])
         expect(messages[4].type).toBe('Error')
         expect(messages[4].filePath).toMatch(badPath)
 
         expect(messages[5].text).toBe(err5)
-        expect(messages[5].range).toEqual([[2,2], [2,3]])
+        expect(messages[5].range).toEqual([[2,3], [2,3]])
         expect(messages[5].type).toBe('Error')
         expect(messages[5].filePath).toMatch(badPath)
 
         expect(messages[6].text).toBe(err6)
-        expect(messages[6].range).toEqual([[2,3], [2,3]])
+        expect(messages[6].range).toEqual([[4,0], [4,5]])
         expect(messages[6].type).toBe('Error')
         expect(messages[6].filePath).toMatch(badPath)
 
@@ -105,7 +104,3 @@ describe 'Tpe pylama provider for Linter', ->
         expect(messages[7].type).toBe('Warning')
         expect(messages[7].filePath).toMatch(badPath)
 
-        expect(messages[8].text).toBe(err8)
-        expect(messages[8].range).toEqual([[4,0], [4,5]])
-        expect(messages[8].type).toBe('Error')
-        expect(messages[8].filePath).toMatch(badPath)

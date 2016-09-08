@@ -139,7 +139,7 @@ class LinterPylama
       usePEP257 = if @usePEP257_ then 'pep257' else ''
       usePyFlakes = if @usePyFlakes_ then 'pyflakes' else ''
 
-      linters = [usePyFlakes, usePyLint, useMcCabe, usePEP8, usePEP257].filter (e) -> e isnt ''
+      linters = [usePEP8, usePEP257, usePyLint, usePyFlakes, useMcCabe].filter (e) -> e isnt ''
       args.push '--linters'
       if linters.length then args.push do linters.join else args.push 'none'
 

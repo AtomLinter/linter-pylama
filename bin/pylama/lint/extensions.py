@@ -24,8 +24,8 @@ except ImportError:
 
 try:
     from pylama.lint.pylama_pycodestyle import Linter
-    LINTERS['pycodestyle'] = Linter()  # for compability
     LINTERS['pep8'] = Linter()  # for compability
+    LINTERS['pycodestyle'] = Linter()
 except ImportError:
     pass
 
