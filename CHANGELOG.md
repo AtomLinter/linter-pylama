@@ -1,3 +1,7 @@
+# 0.7.0
+* Update pylama to version 7.10
+* Update atom-package-deps to version 4.3.1
+
 # 0.6.0
 * Fix and close #50
 * Update internal pyflakes to version 1.3.0
