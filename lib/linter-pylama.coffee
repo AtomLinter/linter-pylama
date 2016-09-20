@@ -27,7 +27,7 @@ class LinterPylama
 
     @subscriptions.add atom.config.observe 'linter-pylama.ignoreErrorsAndWarnings',
     (ignoreErrorsAndWarnings) =>
-      @ignoreErrorsAndWarnings_ = ignoreErrorsAndWarnings
+      @ignoreErrorsAndWarnings_ = ignoreErrorsAndWarnings.replace /\s+/g, ''
 
     @subscriptions.add atom.config.observe 'linter-pylama.skipFiles',
     (skipFiles) =>
