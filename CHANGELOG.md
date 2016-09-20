@@ -1,3 +1,6 @@
+# 0.7.1
+* Fix and close #51
+
 # 0.7.0
 * Update pylama to version 7.10
 * Update atom-package-deps to version 4.3.1
