@@ -77,9 +77,9 @@ class LinterPylama
 
   initEnv: (filePath, projectPath) ->
     pythonPath = []
-    
+
     pythonPath.push filePath if filePath
-    pythonPath.push projectPath if projectPath and projectPath not in pythonPath      
+    pythonPath.push projectPath if projectPath and projectPath not in pythonPath
 
     env = Object.create process.env
     if env.PWD
@@ -128,7 +128,7 @@ class LinterPylama
     if configFilePath then args.push.apply args, ['--options', configFilePath]
     else
       if @ignoreErrorsAndWarnings_ then args.push.apply args, ['--ignore', @ignoreErrorsAndWarnings_]
-      if @skipFiles_ then args.push.apply args, ['--skip', @skipFiles]
+      if @skipFiles_ then args.push.apply args, ['--skip', @skipFiles_]
 
       usePyLint = if @usePyLint_ then 'pylint' else ''
       useMcCabe = if @useMcCabe_ then 'mccabe' else ''
@@ -161,7 +161,7 @@ class LinterPylama
 
 
   lintFile: (lintInfo, textEditor) ->
-    helpers.exec(lintInfo.command, lintInfo.args, lintInfo.options).then (output) =>      
+    helpers.exec(lintInfo.command, lintInfo.args, lintInfo.options).then (output) =>
       atom.notifications.addWarning output['stderr'] if output['stderr']
       console.log output['stdout'] if do atom.inDevMode
       helpers.parse(output['stdout'], regex).map (message) ->
