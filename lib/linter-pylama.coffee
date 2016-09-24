@@ -19,7 +19,7 @@ class LinterPylama
     @subscriptions.add atom.config.observe 'linter-pylama.pylamaVersion',
     (pylamaVersion) =>
       @pylamaVersion_ = pylamaVersion
-      do @initPylama
+      do @initPylama if @isInit
 
     @subscriptions.add atom.config.observe 'linter-pylama.executablePath',
     (executablePath) =>
@@ -117,6 +117,7 @@ class LinterPylama
         @pylamaPath = path.join path.dirname(__dirname), 'bin', 'pylama.bat'
       else
         @pylamaPath = path.join path.dirname(__dirname), 'bin', 'pylama.py'
+    @isInit = true
 
 
   initArgs: (curDir) =>

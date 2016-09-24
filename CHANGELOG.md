@@ -1,3 +1,7 @@
+# 0.7.2
+* Fix and close #52
+* Prevent double initialization
+
 # 0.7.1
 * Fix and close #51
 
