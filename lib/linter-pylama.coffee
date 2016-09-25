@@ -18,8 +18,11 @@ class LinterPylama
     @subscriptions = new CompositeDisposable
     @subscriptions.add atom.config.observe 'linter-pylama.pylamaVersion',
     (pylamaVersion) =>
-      @pylamaVersion_ = pylamaVersion
-      do @initPylama if @isInit
+      if @pylamaVersion_
+        @pylamaVersion_ = pylamaVersion
+        do @initPylama
+      else
+        @pylamaVersion_ = pylamaVersion
 
     @subscriptions.add atom.config.observe 'linter-pylama.executablePath',
     (executablePath) =>
@@ -117,7 +120,6 @@ class LinterPylama
         @pylamaPath = path.join path.dirname(__dirname), 'bin', 'pylama.bat'
       else
         @pylamaPath = path.join path.dirname(__dirname), 'bin', 'pylama.py'
-    @isInit = true
 
 
   initArgs: (curDir) =>
