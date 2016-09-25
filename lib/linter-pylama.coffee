@@ -18,41 +18,41 @@ class LinterPylama
     @subscriptions = new CompositeDisposable
     @subscriptions.add atom.config.observe 'linter-pylama.pylamaVersion',
     (pylamaVersion) =>
-      if @pylamaVersion_
-        @pylamaVersion_ = pylamaVersion
+      if @pylamaVersion
+        @pylamaVersion = pylamaVersion
         do @initPylama
       else
-        @pylamaVersion_ = pylamaVersion
+        @pylamaVersion = pylamaVersion
 
     @subscriptions.add atom.config.observe 'linter-pylama.executablePath',
     (executablePath) =>
-      @executablePath_ = executablePath
+      @executablePath = executablePath
       do @initPylama
 
     @subscriptions.add atom.config.observe 'linter-pylama.ignoreErrorsAndWarnings',
     (ignoreErrorsAndWarnings) =>
       ignoreErrorsAndWarnings = ignoreErrorsAndWarnings.replace /\s+/g, '' if ignoreErrorsAndWarnings
-      @ignoreErrorsAndWarnings_ = ignoreErrorsAndWarnings
+      @ignoreErrorsAndWarnings = ignoreErrorsAndWarnings
 
     @subscriptions.add atom.config.observe 'linter-pylama.skipFiles',
     (skipFiles) =>
-      @skipFiles_ = skipFiles
+      @skipFiles = skipFiles
 
     @subscriptions.add atom.config.observe 'linter-pylama.useMccabe',
     (useMcCabe) =>
-      @useMcCabe_ = useMcCabe
+      @useMcCabe = useMcCabe
 
     @subscriptions.add atom.config.observe 'linter-pylama.usePep8',
     (usePEP8) =>
-      @usePEP8_ = usePEP8
+      @usePEP8 = usePEP8
 
     @subscriptions.add atom.config.observe 'linter-pylama.usePep257',
     (usePEP257) =>
-      @usePEP257_ = usePEP257
+      @usePEP257 = usePEP257
 
     @subscriptions.add atom.config.observe 'linter-pylama.usePyflakes',
     (usePyFlakes) =>
-      @usePyFlakes_ = usePyFlakes
+      @usePyFlakes = usePyFlakes
 
     @subscriptions.add atom.config.observe 'linter-pylama.usePylint',
     (usePyLint) =>
@@ -68,7 +68,7 @@ class LinterPylama
 
     @subscriptions.add atom.config.observe 'linter-pylama.configFileName',
     (configFileName) =>
-      @configFileName_ = configFileName
+      @configFileName = configFileName
 
   destroy: ->
     do @subscriptions.dispose
@@ -94,10 +94,8 @@ class LinterPylama
 
 
   initPylama: =>
-    pylamaVersion = atom.config.get 'linter-pylama.pylamaVersion'
-    pylamaPath = atom.config.get 'linter-pylama.executablePath'
-
-    if pylamaVersion is 'external' and pylamaPath isnt @pylamaPath
+    pylamaPath = @executablePath
+    if @pylamaVersion is 'external' and pylamaPath isnt @pylamaPath
       if /^(pylama|pylama\.exe)$/.test pylamaPath
         processPath = process.env.PATH or process.env.Path
         processPath.split(path.delimiter).forEach (dir) =>
@@ -126,18 +124,18 @@ class LinterPylama
     args = ['-F']
 
     if @configFileLoad_[0] is 'U' # 'Use pylama config'
-      configFilePath = helpers.findCached curDir, @configFileName_
+      configFilePath = helpers.findCached curDir, @configFileName
 
     if configFilePath then args.push.apply args, ['--options', configFilePath]
     else
-      if @ignoreErrorsAndWarnings_ then args.push.apply args, ['--ignore', @ignoreErrorsAndWarnings_]
-      if @skipFiles_ then args.push.apply args, ['--skip', @skipFiles_]
+      if @ignoreErrorsAndWarnings then args.push.apply args, ['--ignore', @ignoreErrorsAndWarnings]
+      if @skipFiles then args.push.apply args, ['--skip', @skipFiles]
 
       usePyLint = if @usePyLint_ then 'pylint' else ''
-      useMcCabe = if @useMcCabe_ then 'mccabe' else ''
-      usePEP8 = if @usePEP8_ then 'pep8' else ''
-      usePEP257 = if @usePEP257_ then 'pep257' else ''
-      usePyFlakes = if @usePyFlakes_ then 'pyflakes' else ''
+      useMcCabe = if @useMcCabe then 'mccabe' else ''
+      usePEP8 = if @usePEP8 then 'pep8' else ''
+      usePEP257 = if @usePEP257 then 'pep257' else ''
+      usePyFlakes = if @usePyFlakes then 'pyflakes' else ''
 
       linters = [usePEP8, usePEP257, usePyLint, usePyFlakes, useMcCabe].filter (e) -> e isnt ''
       args.push '--linters'
