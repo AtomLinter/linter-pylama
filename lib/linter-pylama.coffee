@@ -3,6 +3,7 @@ path = require 'path'
 helpers = require 'atom-linter'
 {CompositeDisposable} = require 'atom'
 
+
 regex =
   '(?<file_>.+):' +
   '(?<line>\\d+):' +
@@ -10,6 +11,7 @@ regex =
   '\\s+' +
   '(((?<type>[ECDFINRW])(?<file>\\d+)(:\\s+|\\s+))|(.*?))' +
   '(?<message>.+)'
+
 
 class LinterPylama
   @pylamaPath: ''
@@ -69,6 +71,7 @@ class LinterPylama
     @subscriptions.add atom.config.observe 'linter-pylama.configFileName',
     (configFileName) =>
       @configFileName = configFileName
+
 
   destroy: ->
     do @subscriptions.dispose
