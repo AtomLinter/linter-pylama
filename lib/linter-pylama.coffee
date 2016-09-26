@@ -1,7 +1,7 @@
-fs = require "fs"
 path = require 'path'
 helpers = require 'atom-linter'
 {CompositeDisposable} = require 'atom'
+{statSync} = require "fs"
 
 
 regex =
@@ -14,8 +14,6 @@ regex =
 
 
 class LinterPylama
-  @pylamaPath: ''
-
   constructor: ->
     @subscriptions = new CompositeDisposable
     @subscriptions.add atom.config.observe 'linter-pylama.pylamaVersion',
@@ -58,7 +56,7 @@ class LinterPylama
 
     @subscriptions.add atom.config.observe 'linter-pylama.usePylint',
     (usePyLint) =>
-      @usePyLint_ = usePyLint
+      @usePyLint = usePyLint
 
     @subscriptions.add atom.config.observe 'linter-pylama.lintOnFly',
     (lintOnFly) =>
@@ -97,30 +95,32 @@ class LinterPylama
 
 
   initPylama: =>
-    pylamaPath = @executablePath
-    if @pylamaVersion is 'external' and pylamaPath isnt @pylamaPath
-      if /^(pylama|pylama\.exe)$/.test pylamaPath
+    if @pylamaVersion is 'external' and @executablePath isnt @pylamaPath
+      @pylamaPath = ''
+      if /^(pylama|pylama\.exe)$/.test @executablePath
         processPath = process.env.PATH or process.env.Path
-        processPath.split(path.delimiter).forEach (dir) =>
-          tmp = path.join dir, pylamaPath
-          if fs.existsSync tmp
-            pylamaPath = tmp
-
-      if not path.isAbsolute pylamaPath
-        pylamaPath = path.resolve pylamaPath
-
-      if not fs.existsSync pylamaPath or not do fs.statSync(pylamaPath).isFile
-        atom.notifications.addError 'Pylama executable not found',
-        detail: "[linter-pylama] `#{pylamaPath}` executable file not found. \
-        Please set the correct path to `pylama`."
-        @pylamaPath = ''
+        for dir in processPath.split path.delimiter
+          tmp = path.join dir, @executablePath
+          try
+            @pylamaPath = tmp if do statSync(tmp).isFile
+            break
+          catch e
       else
-        @pylamaPath = pylamaPath
+        if @executablePath
+          tmp = if not path.isAbsolute @executablePath then path.resolve @executablePath else @executablePath
+          try
+            @pylamaPath = tmp if do statSync(tmp).isFile
+          catch e
+
+      if not @pylamaPath
+        atom.notifications.addError 'Pylama executable not found',
+        detail: "[linter-pylama] `#{@executablePath}` executable file not found.
+        \nPlease set the correct path to `pylama`."
     else
       if process.platform is 'win32'
         @pylamaPath = path.join path.dirname(__dirname), 'bin', 'pylama.bat'
       else
-        @pylamaPath = path.join path.dirname(__dirname), 'bin', 'pylama.py'
+        @pylamaPath = path.join path.dirname(__dirname), 'bin', 'pylama.py',
 
 
   initArgs: (curDir) =>
@@ -134,7 +134,7 @@ class LinterPylama
       if @ignoreErrorsAndWarnings then args.push.apply args, ['--ignore', @ignoreErrorsAndWarnings]
       if @skipFiles then args.push.apply args, ['--skip', @skipFiles]
 
-      usePyLint = if @usePyLint_ then 'pylint' else ''
+      usePyLint = if @usePyLint then 'pylint' else ''
       useMcCabe = if @useMcCabe then 'mccabe' else ''
       usePEP8 = if @usePEP8 then 'pep8' else ''
       usePEP257 = if @usePEP257 then 'pep257' else ''
