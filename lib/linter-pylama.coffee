@@ -60,7 +60,7 @@ class LinterPylama
 
     @subscriptions.add atom.config.observe 'linter-pylama.lintOnFly',
     (lintOnFly) =>
-      @isLintOnFly = lintOnFly
+      @lintOnFly = lintOnFly
 
     @subscriptions.add atom.config.observe 'linter-pylama.configFileLoad',
     (configFileLoad) =>
@@ -76,7 +76,7 @@ class LinterPylama
 
 
   isLintOnFly: ->
-    return @isLintOnFly
+    return @lintOnFly
 
 
   initEnv: (filePath, projectPath) ->
@@ -194,7 +194,7 @@ class LinterPylama
         message
 
 
-  lintOnFly: (textEditor) =>
+  lintFileOnFly: (textEditor) =>
     filePath = do textEditor.getPath
     fileName = path.basename do textEditor.getPath
     helpers.tempFile fileName, do textEditor.getText, (tmpFilePath) =>
@@ -206,14 +206,14 @@ class LinterPylama
     filePath = do textEditor.getPath
     if process.platform is 'win32'
       if filePath.slice(0, 2) == '\\\\'
-        return @lintOnFly textEditor
+        return @lintFileOnFly textEditor
     lintInfo = @makeLintInfo filePath
     @lintFile lintInfo, textEditor
 
 
   lint: (textEditor) =>
     return [] if not @pylamaPath
-    return @lintOnFly textEditor if @isLintOnFly
+    return @lintFileOnFly textEditor if @lintOnFly
     @lintOnSave textEditor
 
 
