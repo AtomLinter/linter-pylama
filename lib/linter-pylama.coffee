@@ -60,11 +60,11 @@ class LinterPylama
 
     @subscriptions.add atom.config.observe 'linter-pylama.lintOnFly',
     (lintOnFly) =>
-      @lintOnFly_ = lintOnFly
+      @isLintOnFly = lintOnFly
 
     @subscriptions.add atom.config.observe 'linter-pylama.configFileLoad',
     (configFileLoad) =>
-      @configFileLoad_ = configFileLoad
+      @configFileLoad = configFileLoad
 
     @subscriptions.add atom.config.observe 'linter-pylama.configFileName',
     (configFileName) =>
@@ -76,7 +76,7 @@ class LinterPylama
 
 
   isLintOnFly: ->
-    return @lintOnFly_
+    return @isLintOnFly
 
 
   initEnv: (filePath, projectPath) ->
@@ -126,7 +126,7 @@ class LinterPylama
   initArgs: (curDir) =>
     args = ['-F']
 
-    if @configFileLoad_[0] is 'U' # 'Use pylama config'
+    if @configFileLoad[0] is 'U' # 'Use pylama config'
       configFilePath = helpers.findCached curDir, @configFileName
 
     if configFilePath then args.push.apply args, ['--options', configFilePath]
@@ -213,7 +213,7 @@ class LinterPylama
 
   lint: (textEditor) =>
     return [] if not @pylamaPath
-    return @lintOnFly textEditor if @lintOnFly_
+    return @lintOnFly textEditor if @isLintOnFly
     @lintOnSave textEditor
 
 
