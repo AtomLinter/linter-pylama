@@ -1,7 +1,7 @@
 path = require 'path'
 helpers = require 'atom-linter'
 {CompositeDisposable} = require 'atom'
-{statSync} = require "fs"
+{statSync, realpathSync} = require "fs"
 
 
 regex =
@@ -150,7 +150,7 @@ class LinterPylama
   makeLintInfo: (fileName, originFileName) =>
     originFileName = fileName if not originFileName
     filePath = path.normalize path.dirname(originFileName)
-    tmpFilePath =  if fileName != originFileName then fs.realpathSync path.dirname(fileName) else filePath
+    tmpFilePath =  if fileName != originFileName then path.dirname(fileName) else filePath
     projectPath = atom.project.relativizePath(originFileName)[0]
     env = @initEnv filePath, projectPath
     args = @initArgs filePath
@@ -200,7 +200,7 @@ class LinterPylama
     filePath = do textEditor.getPath
     fileName = path.basename do textEditor.getPath
     helpers.tempFile fileName, do textEditor.getText, (tmpFilePath) =>
-      tmpFilePath = fs.realpathSync tmpFilePath
+      tmpFilePath = realpathSync tmpFilePath
       lintInfo = @makeLintInfo tmpFilePath, filePath
       @lintFile lintInfo, textEditor
 
