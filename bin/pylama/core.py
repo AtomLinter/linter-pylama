@@ -33,8 +33,7 @@ def run(path='', code=None, rootdir=CURDIR, options=None):
             if mask.match(path):
                 fileconfig.update(options.file_params[mask])
 
-        skip_path = op.relpath(path, op.dirname(path))
-        if options.skip and any(p.match(skip_path) for p in options.skip):
+        if options.skip and any(p.match(path) for p in options.skip):
             LOGGER.info('Skip checking for path: %s', path)
             return []
 
