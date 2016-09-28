@@ -1,3 +1,6 @@
+# 0.7.3
+* Minor changes
+
 # 0.7.2
 * Fix and close #52
 * Prevent double initialization
