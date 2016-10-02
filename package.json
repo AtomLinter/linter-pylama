@@ -21,5 +21,17 @@
   },
   "package-deps": [
     "linter"
+  ],
+  "keywords": [
+    "atom",
+    "python",
+    "linter",
+    "pycodestyle",
+    "pep8",
+    "pydocstyle",
+    "pep257",
+    "mccabe",
+    "pylint",
+    "pyflakes"
   ]
 }
