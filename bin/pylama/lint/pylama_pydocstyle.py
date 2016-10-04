@@ -1,6 +1,6 @@
 """pydocstyle support."""
 
-from pydocstyle.checker import PEP257Checker
+from pydocstyle import PEP257Checker
 
 from pylama.lint import Linter as Abstract
 
