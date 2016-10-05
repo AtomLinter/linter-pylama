@@ -23,15 +23,14 @@
     "linter"
   ],
   "keywords": [
-    "atom",
-    "python",
     "linter",
-    "pycodestyle",
-    "pep8",
-    "pydocstyle",
-    "pep257",
-    "mccabe",
+    "python",
     "pylint",
-    "pyflakes"
+    "pep8",
+    "pep257",
+    "pycodestyle",
+    "pydocstyle",
+    "pyflakes",
+    "mccabe"
   ]
 }
