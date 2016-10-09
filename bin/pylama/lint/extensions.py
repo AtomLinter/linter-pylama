@@ -41,4 +41,10 @@ try:
 except ImportError:
     pass
 
+try:
+    from isort.pylama_isort import Linter
+    LINTERS['isort'] = Linter()
+except ImportError:
+    pass
+
 #  pylama:ignore=E0611

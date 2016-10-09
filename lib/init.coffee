@@ -72,6 +72,11 @@ module.exports =
       description: 'Use PyLint linter. May be unstable for internal Pylama.
       For use with external Pylama you should install pylama_pylint module
       ("pip install pylama-pylint").'
+    useIsort:
+      type: 'boolean'
+      default: false
+      title: 'Use isort'
+      description: 'Use isort imports checker.'
 
 
   activate: ->

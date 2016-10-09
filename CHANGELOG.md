@@ -1,3 +1,6 @@
+# 0.7.5
+* Add isort support (close #53)
+
 # 0.7.4
 * Update pydocstyle to version 1.1.1
 
