@@ -1,3 +1,6 @@
+# 0.7.6
+* Use isort for sorting imports on save
+
 # 0.7.5
 * Add isort support (close #53)
 

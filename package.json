@@ -31,6 +31,7 @@
     "pycodestyle",
     "pydocstyle",
     "pyflakes",
-    "mccabe"
+    "mccabe",
+    "isort"
   ]
 }
