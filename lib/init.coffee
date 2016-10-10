@@ -45,26 +45,24 @@ module.exports =
       default: true
       description: "Enable linting on the fly. Need to restart Atom."
       order: 6
-    useMccabe:
-      type: 'boolean'
-      default: true
-      title: 'Use McCabe'
-      description: 'Use McCabe complexity checker.'
     usePep8:
       type: 'boolean'
       default: true
       title: 'Use pycodestyle/pep8'
       description: 'Use pycodestyle/pep8 style guide checker.'
-    usePyflakes:
-      type: 'boolean'
-      default: true
-      title: 'Use Pyflakes'
-      description: 'Use Pyflakes checker.'
+      order: 7
     usePep257:
       type: 'boolean'
       default: true
       title: 'Use pydocstyle/pep257'
       description: 'Use pydocstyle/pep257 docstring conventions checker.'
+      order: 8
+    usePyflakes:
+      type: 'boolean'
+      default: true
+      title: 'Use Pyflakes'
+      description: 'Use Pyflakes checker.'
+      order: 9
     usePylint:
       type: 'boolean'
       default: false
@@ -72,11 +70,24 @@ module.exports =
       description: 'Use PyLint linter. May be unstable for internal Pylama.
       For use with external Pylama you should install pylama_pylint module
       ("pip install pylama-pylint").'
+      order: 10
+    useMccabe:
+      type: 'boolean'
+      default: true
+      title: 'Use McCabe'
+      description: 'Use McCabe complexity checker.'
+      order: 11
     useIsort:
       type: 'boolean'
       default: false
       title: 'Use isort'
       description: 'Use isort imports checker.'
+      order: 12
+    isortOnSave:
+      type: 'boolean'
+      default: false
+      title: 'isort imports on save (experimental).'
+      order: 13
 
 
   activate: ->

@@ -74,9 +74,23 @@ class LinterPylama
     (configFileName) =>
       @configFileName = configFileName
 
+    @subscriptions.add atom.config.observe 'linter-pylama.isortOnSave',
+    (isortOnSave) =>
+      if isortOnSave
+        if process.platform is 'win32'
+          isortPath = path.join path.dirname(__dirname), 'bin', 'isort.bat'
+        else
+          isortPath = path.join path.dirname(__dirname), 'bin', 'isort.py'
+        atom.workspace.observeTextEditors (editor) =>
+          @isortOnSave = editor.onDidSave ->
+            helpers.exec isortPath, [do editor.getPath]
+      else
+        do @isortOnSave?.dispose
+
 
   destroy: ->
-    do @subscriptions.dispose
+    do @subscriptions?.dispose
+    do @isortOnSave?.dispose
 
 
   isLintOnFly: ->
