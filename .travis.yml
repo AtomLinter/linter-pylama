@@ -11,7 +11,7 @@ matrix:
       env: ATOM_CHANNEL=stable
       before_install:
         - brew update
-        - brew install python
+        - brew install python || brew upgrade python
     - os: osx
       language: generic
       env: ATOM_CHANNEL=beta
