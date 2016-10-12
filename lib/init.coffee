@@ -8,6 +8,11 @@ module.exports =
       and other cool things) or external stable Pylama (do not forget to
       specify executable path).'
       order: 0
+    interpreter:
+      type: 'string'
+      default: 'python'
+      description: 'Python interpreter for internal Pylama.'
+      order: 1
     executablePath:
       type: 'string'
       default: 'pylama'

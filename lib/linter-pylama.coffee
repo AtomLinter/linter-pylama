@@ -29,6 +29,11 @@ class LinterPylama
       @executablePath = executablePath
       do @initPylama
 
+    @subscriptions.add atom.config.observe 'linter-pylama.interpreter',
+    (interpreter) =>
+      @interpreter = interpreter
+      do @initPylama
+
     @subscriptions.add atom.config.observe 'linter-pylama.ignoreErrorsAndWarnings',
     (ignoreErrorsAndWarnings) =>
       ignoreErrorsAndWarnings = ignoreErrorsAndWarnings.replace /\s+/g, '' if ignoreErrorsAndWarnings
@@ -175,9 +180,14 @@ class LinterPylama
     args = @initArgs filePath
     args.push fileName
     console.log "#{@pylamaPath} #{args}" if do atom.inDevMode
+    if @pylamaVersion is 'external'
+      command = @pylamaPath
+    else
+      command = @interpreter
+      args.unshift @pylamaPath
     info =
       fileName: originFileName
-      command: @pylamaPath
+      command: command
       args: args
       options:
         env: env
