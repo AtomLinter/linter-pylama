@@ -6,12 +6,13 @@ module.exports =
       enum: ['external', 'internal']
       description: 'Switch between internal Pylama (with Virtualenv detection
       and other cool things) or external stable Pylama (do not forget to
-      specify executable path).'
+      specify executable path)'
       order: 0
     interpreter:
       type: 'string'
       default: 'python'
-      description: 'Python interpreter for internal Pylama.'
+      description: 'Python interpreter for internal Pylama
+      (python, python3, /usr/bin/python, /usr/local/bin/python3, etc.)'
       order: 1
     executablePath:
       type: 'string'
@@ -48,25 +49,25 @@ module.exports =
     lintOnFly:
       type: 'boolean'
       default: true
-      description: "Enable linting on the fly. Need to restart Atom."
+      description: "Enable linting on the fly. Need to restart Atom"
       order: 7
     usePep8:
       type: 'boolean'
       default: true
       title: 'Use pycodestyle/pep8'
-      description: 'Use pycodestyle/pep8 style guide checker.'
+      description: 'Use pycodestyle/pep8 style guide checker'
       order: 8
     usePep257:
       type: 'boolean'
       default: true
       title: 'Use pydocstyle/pep257'
-      description: 'Use pydocstyle/pep257 docstring conventions checker.'
+      description: 'Use pydocstyle/pep257 docstring conventions checker'
       order: 9
     usePyflakes:
       type: 'boolean'
       default: true
       title: 'Use Pyflakes'
-      description: 'Use Pyflakes checker.'
+      description: 'Use Pyflakes checker'
       order: 10
     usePylint:
       type: 'boolean'
@@ -74,24 +75,24 @@ module.exports =
       title: 'Use PyLint'
       description: 'Use PyLint linter. May be unstable for internal Pylama.
       For use with external Pylama you should install pylama_pylint module
-      ("pip install pylama-pylint").'
+      ("pip install pylama-pylint")'
       order: 11
     useMccabe:
       type: 'boolean'
       default: true
       title: 'Use McCabe'
-      description: 'Use McCabe complexity checker.'
+      description: 'Use McCabe complexity checker'
       order: 12
     useIsort:
       type: 'boolean'
       default: false
       title: 'Use isort'
-      description: 'Use isort imports checker.'
+      description: 'Use isort imports checker'
       order: 13
     isortOnSave:
       type: 'boolean'
       default: false
-      title: 'isort imports on save (experimental).'
+      title: 'isort imports on save (experimental)'
       order: 14
 
 
@@ -99,6 +100,7 @@ module.exports =
     require('atom-package-deps').install 'linter-pylama'
     console.log 'Linter-Pylama: package loaded,
                  ready to get initialized by AtomLinter.'
+
 
   provideLinter: ->
     LinterPylama = require './linter-pylama.coffee'
