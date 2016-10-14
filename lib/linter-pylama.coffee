@@ -26,8 +26,11 @@ class LinterPylama
 
     @subscriptions.add atom.config.observe 'linter-pylama.executablePath',
     (executablePath) =>
-      @executablePath = executablePath
-      do @initPylama
+      if @executablePath
+        @executablePath = executablePath
+        do initPylama
+      else
+        @executablePath = executablePath
 
     @subscriptions.add atom.config.observe 'linter-pylama.interpreter',
     (interpreter) =>
