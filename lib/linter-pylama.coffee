@@ -86,9 +86,10 @@ class LinterPylama
     (isortOnSave) =>
       if isortOnSave
         isortPath = path.join path.dirname(__dirname), 'bin', 'isort.py'
+        interpreter = atom.config.get 'linter-pylama.interpreter'
         atom.workspace.observeTextEditors (editor) =>
           @isortOnSave = editor.onDidSave ->
-            helpers.exec isortPath, [do editor.getPath]
+            helpers.exec interpreter, [isortPath, do editor.getPath]
       else
         do @isortOnSave?.dispose
 
