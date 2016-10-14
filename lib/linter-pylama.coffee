@@ -82,10 +82,7 @@ class LinterPylama
     @subscriptions.add atom.config.observe 'linter-pylama.isortOnSave',
     (isortOnSave) =>
       if isortOnSave
-        if process.platform is 'win32'
-          isortPath = path.join path.dirname(__dirname), 'bin', 'isort.bat'
-        else
-          isortPath = path.join path.dirname(__dirname), 'bin', 'isort.py'
+        isortPath = path.join path.dirname(__dirname), 'bin', 'isort.py'
         atom.workspace.observeTextEditors (editor) =>
           @isortOnSave = editor.onDidSave ->
             helpers.exec isortPath, [do editor.getPath]
@@ -140,10 +137,7 @@ class LinterPylama
         detail: "[linter-pylama] `#{@executablePath}` executable file not found.
         \nPlease set the correct path to `pylama`."
     else
-      if process.platform is 'win32'
-        @pylamaPath = path.join path.dirname(__dirname), 'bin', 'pylama.bat'
-      else
-        @pylamaPath = path.join path.dirname(__dirname), 'bin', 'pylama.py',
+      @pylamaPath = path.join path.dirname(__dirname), 'bin', 'pylama.py',
 
 
   initArgs: (curDir) =>
