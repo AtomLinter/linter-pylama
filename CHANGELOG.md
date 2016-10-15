@@ -1,3 +1,6 @@
+# 0.8.0
+* Add a custom interpreter setting for internal pylama (@Evpok)
+
 # 0.7.6
 * Use isort for sorting imports on save
 
