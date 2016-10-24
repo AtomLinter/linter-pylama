@@ -105,7 +105,7 @@ module.exports =
   provideLinter: ->
     LinterPylama = require './linter-pylama.coffee'
     @provider = new LinterPylama()
-    return {
+    {
       grammarScopes: [
         'source.python'
         'source.python.django'
