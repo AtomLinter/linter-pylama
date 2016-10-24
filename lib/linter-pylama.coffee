@@ -1,8 +1,8 @@
-path = require 'path'
-helpers = require 'atom-linter'
-{CompositeDisposable} = require 'atom'
 {statSync, realpathSync} = require "fs"
+path = require 'path'
 
+{CompositeDisposable} = require 'atom'
+helpers = require 'atom-linter'
 
 regex =
   '(?<file_>.+):' +
