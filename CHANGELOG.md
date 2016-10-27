@@ -1,3 +1,7 @@
+# 0.8.5
+* Update pylama version to 7.2.3
+* Add Radon - complexity checker
+
 # 0.8.0
 * Add a custom interpreter setting for internal pylama (@Evpok)
 
