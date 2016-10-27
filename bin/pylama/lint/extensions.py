@@ -36,6 +36,12 @@ except ImportError:
     pass
 
 try:
+    from pylama.lint.pylama_radon import Linter
+    LINTERS['radon'] = Linter()
+except ImportError:
+    pass
+
+try:
     from pylama.lint.pylama_pylint import Linter
     LINTERS['pylint'] = Linter()
 except ImportError:

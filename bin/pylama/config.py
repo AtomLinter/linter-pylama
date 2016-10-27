@@ -82,7 +82,7 @@ PARSER.add_argument('--version', action='version',
 
 PARSER.add_argument(
     "--format", "-f", default=_Default('pycodestyle'),
-    choices=['pycodestyle', 'pylint', 'parsable'],
+    choices=['pep8', 'pycodestyle', 'pylint', 'parsable'],
     help="Choose errors format (pycodestyle, pylint, parsable).")
 
 PARSER.add_argument(
@@ -152,7 +152,7 @@ def parse_options(args=None, config=True, rootdir=CURDIR, **overrides): # noqa
     for k, v in overrides.items():
         passed_value = getattr(options, k, _Default())
         if isinstance(passed_value, _Default):
-            setattr(options, k, _Default(v))
+            setattr(options, k, process_value(k, v))
 
     # Compile options from ini
     if config:
