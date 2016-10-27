@@ -77,23 +77,29 @@ module.exports =
       For use with external Pylama you should install pylama_pylint module
       ("pip install pylama-pylint")'
       order: 11
-    useMccabe:
+    useMcCabe:
       type: 'boolean'
       default: true
       title: 'Use McCabe'
       description: 'Use McCabe complexity checker'
       order: 12
+    useRadon:
+      type: 'boolean'
+      default: false
+      title: 'Use Radon'
+      description: 'Use Radon complexity and code metrics checker'
+      order: 13
     useIsort:
       type: 'boolean'
       default: false
       title: 'Use isort'
       description: 'Use isort imports checker'
-      order: 13
+      order: 14
     isortOnSave:
       type: 'boolean'
       default: false
       title: 'isort imports on save (experimental)'
-      order: 14
+      order: 15
 
 
   activate: ->

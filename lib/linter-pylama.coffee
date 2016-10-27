@@ -46,9 +46,12 @@ class LinterPylama
     (skipFiles) =>
       @skipFiles = skipFiles
 
-    @subscriptions.add atom.config.observe 'linter-pylama.useMccabe',
+    @subscriptions.add atom.config.observe 'linter-pylama.useMcCabe',
     (useMcCabe) =>
+      console.log 'mccabe'
       @useMcCabe = useMcCabe
+      if @useMcCabe
+        atom.config.set 'linter-pylama.useRadon', false
 
     @subscriptions.add atom.config.observe 'linter-pylama.usePep8',
     (usePEP8) =>
@@ -60,11 +63,22 @@ class LinterPylama
 
     @subscriptions.add atom.config.observe 'linter-pylama.usePyflakes',
     (usePyFlakes) =>
+      console.log 'pyflakes'
       @usePyFlakes = usePyFlakes
+      if @usePyflakes
+        atom.config.set 'linter-pylama.useRadon', false
 
     @subscriptions.add atom.config.observe 'linter-pylama.usePylint',
     (usePyLint) =>
       @usePyLint = usePyLint
+
+    @subscriptions.add atom.config.observe 'linter-pylama.useRadon',
+    (useRadon) =>
+      console.log 'radon'
+      @useRadon = useRadon
+      if @useRadon
+        atom.config.set 'linter-pylama.useMcCabe', false
+        atom.config.set 'linter-pylama.usePyflakes', false
 
     @subscriptions.add atom.config.observe 'linter-pylama.useIsort',
     (useIsort) =>
@@ -160,9 +174,10 @@ class LinterPylama
       usePEP8 = if @usePEP8 then 'pep8' else ''
       usePEP257 = if @usePEP257 then 'pep257' else ''
       usePyFlakes = if @usePyFlakes then 'pyflakes' else ''
+      useRadon = if @useRadon then 'radon' else ''
       useIsort = if @useIsort then 'isort' else ''
 
-      linters = [usePEP8, usePEP257, usePyLint, usePyFlakes, useMcCabe, useIsort].filter (e) -> e isnt ''
+      linters = [usePEP8, usePEP257, usePyLint, usePyFlakes, useMcCabe, useRadon, useIsort].filter (e) -> e isnt ''
       args.push '--linters'
       if linters.length then args.push do linters.join else args.push 'none'
 
