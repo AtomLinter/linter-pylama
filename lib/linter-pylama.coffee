@@ -15,6 +15,8 @@ regex =
 
 class LinterPylama
   constructor: ->
+    @isortPath = path.join path.dirname(__dirname), 'bin', 'isort.py'
+
     @subscriptions = new CompositeDisposable
     @subscriptions.add atom.config.observe 'linter-pylama.pylamaVersion',
     (pylamaVersion) =>
@@ -48,7 +50,6 @@ class LinterPylama
 
     @subscriptions.add atom.config.observe 'linter-pylama.useMcCabe',
     (useMcCabe) =>
-      console.log 'mccabe'
       @useMcCabe = useMcCabe
       if @useMcCabe
         atom.config.set 'linter-pylama.useRadon', false
@@ -63,7 +64,6 @@ class LinterPylama
 
     @subscriptions.add atom.config.observe 'linter-pylama.usePyflakes',
     (usePyFlakes) =>
-      console.log 'pyflakes'
       @usePyFlakes = usePyFlakes
       if @usePyflakes
         atom.config.set 'linter-pylama.useRadon', false
@@ -74,7 +74,6 @@ class LinterPylama
 
     @subscriptions.add atom.config.observe 'linter-pylama.useRadon',
     (useRadon) =>
-      console.log 'radon'
       @useRadon = useRadon
       if @useRadon
         atom.config.set 'linter-pylama.useMcCabe', false
@@ -99,13 +98,15 @@ class LinterPylama
     @subscriptions.add atom.config.observe 'linter-pylama.isortOnSave',
     (isortOnSave) =>
       if isortOnSave
-        isortPath = path.join path.dirname(__dirname), 'bin', 'isort.py'
-        interpreter = atom.config.get 'linter-pylama.interpreter'
         atom.workspace.observeTextEditors (editor) =>
-          @isortOnSave = editor.onDidSave ->
-            helpers.exec interpreter, [isortPath, do editor.getPath]
+          @isortOnSave = editor.onDidSave =>
+            helpers.exec @interpreter, [@isortPath, do editor.getPath]
       else
         do @isortOnSave?.dispose
+
+    @subscriptions.add atom.commands.add 'atom-workspace', 'linter-pylama:isort', =>
+      editor = atom.workspace.getActiveTextEditor()
+      helpers.exec @interpreter, [@isortPath, do editor.getPath]
 
 
   destroy: ->

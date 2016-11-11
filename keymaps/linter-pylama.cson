@@ -1,0 +1,2 @@
+'atom-text-editor[data-grammar="source python"]':
+  'shift-ctrl-alt-i': 'linter-pylama:isort'
