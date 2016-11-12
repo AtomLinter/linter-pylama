@@ -1,3 +1,7 @@
+# 0.8.6
+* Update pycodestyle to version 2.1.0
+* Add shortcut for isort
+
 # 0.8.5
 * Update pylama version to 7.2.3
 * Add Radon - complexity checker
