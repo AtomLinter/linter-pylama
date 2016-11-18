@@ -41,8 +41,9 @@ def hook(lazy=False, strict=False):
     app = application.Application()
     with make_temporary_directory() as tempdir:
         filepaths = list(copy_indexed_files_to(tempdir, lazy))
-        app.initialize(filepaths)
-        app.run_checks()
+        app.initialize(['.'])
+        app.options.exclude = update_excludes(app.options.exclude, tempdir)
+        app.run_checks(filepaths)
 
     app.report_errors()
     if strict:
@@ -140,11 +141,14 @@ def make_temporary_directory_from(destination, directory):
 
 
 def find_modified_files(lazy):
-    diff_index = piped_process(
-        ['git', 'diff-index', '--cached', '--name-only',
-         '--diff-filter=ACMRTUXB', 'HEAD'],
-    )
+    diff_index_cmd = [
+        'git', 'diff-index', '--cached', '--name-only',
+        '--diff-filter=ACMRTUXB', 'HEAD'
+    ]
+    if lazy:
+        diff_index_cmd.remove('--cached')
 
+    diff_index = piped_process(diff_index_cmd)
     (stdout, _) = diff_index.communicate()
     stdout = to_text(stdout)
     return stdout.splitlines()
@@ -189,6 +193,14 @@ def config_for(parameter):
     git_variable = 'flake8.{0}'.format(parameter)
     value = os.environ.get(environment_variable, git_config_for(git_variable))
     return value.lower() in defaults.TRUTHY_VALUES
+
+
+def update_excludes(exclude_list, temporary_directory_path):
+    return [
+        (temporary_directory_path + pattern)
+        if os.path.isabs(pattern) else pattern
+        for pattern in exclude_list
+    ]
 
 
 _HOOK_TEMPLATE = """#!{executable}

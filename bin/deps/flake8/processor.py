@@ -41,7 +41,9 @@ class FileProcessor(object):
     - :attr:`noqa`
     - :attr:`previous_indent_level`
     - :attr:`previous_logical`
+    - :attr:`previous_unindented_logical_line`
     - :attr:`tokens`
+    - :attr:`file_tokens`
     - :attr:`total_lines`
     - :attr:`verbose`
     """
@@ -88,6 +90,8 @@ class FileProcessor(object):
         self.previous_indent_level = 0
         #: Previous logical line
         self.previous_logical = ''
+        #: Previous unindented (i.e. top-level) logical line
+        self.previous_unindented_logical_line = ''
         #: Current set of tokens
         self.tokens = []
         #: Total number of lines in the file
@@ -98,6 +102,26 @@ class FileProcessor(object):
         self.statistics = {
             'logical lines': 0,
         }
+        self._file_tokens = None
+
+    @property
+    def file_tokens(self):
+        """The complete set of tokens for a file.
+
+        Accessing this attribute *may* raise an InvalidSyntax exception.
+
+        :raises: flake8.exceptions.InvalidSyntax
+        """
+        if self._file_tokens is None:
+            line_iter = iter(self.lines)
+            try:
+                self._file_tokens = list(tokenize.generate_tokens(
+                    lambda: next(line_iter)
+                ))
+            except tokenize.TokenError as exc:
+                raise exceptions.InvalidSyntax(exc.message, exception=exc)
+
+        return self._file_tokens
 
     @contextlib.contextmanager
     def inside_multiline(self, line_number):
@@ -142,6 +166,8 @@ class FileProcessor(object):
         if self.logical_line:
             self.previous_indent_level = self.indent_level
             self.previous_logical = self.logical_line
+            if not self.indent_level:
+                self.previous_unindented_logical_line = self.logical_line
         self.blank_lines = 0
         self.tokens = []
         self.noqa = False
@@ -267,7 +293,7 @@ class FileProcessor(object):
         # type: () -> List[str]
         """Read the lines for this file checker."""
         if self.filename is None or self.filename == '-':
-            self.filename = self.options.stdin_display_name
+            self.filename = self.options.stdin_display_name or 'stdin'
             lines = self.read_lines_from_stdin()
         else:
             lines = self.read_lines_from_filename()
