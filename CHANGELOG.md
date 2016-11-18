@@ -1,3 +1,7 @@
+# 0.8.7
+* Update pycodestyle to version 2.2.0
+* Update flake8 to version 3.2.0
+
 # 0.8.6
 * Update pycodestyle to version 2.1.0
 * Add shortcut for isort
