@@ -37,7 +37,8 @@ module.exports =
       type: 'string'
       default: 'D203,D212,D213,D404'
       description: 'Comma-separated list of errors and warnings.
-      Example: ED203,D212,D213,D404,111,E114,D101,D102,DW0311'
+      Example: ED203,D212,D213,D404,111,E114,D101,D102,DW0311.
+      See more: https://goo.gl/jeYN96, https://goo.gl/O8xhLM'
       order: 5
     skipFiles:
       type: 'string'
