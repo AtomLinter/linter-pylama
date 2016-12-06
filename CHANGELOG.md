@@ -1,3 +1,6 @@
+# 0.8.9
+*  Update pylama to version 7.3.1
+
 # 0.8.8
 * Update flake8 to version 3.2.1
 
