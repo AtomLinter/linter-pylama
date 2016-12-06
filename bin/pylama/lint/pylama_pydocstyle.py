@@ -16,9 +16,13 @@ class Linter(Abstract):
         :return list: List of errors.
         """
         try:
-            return [
-                {'lnum': e.line, 'text': e.message, 'type': 'D', 'number': e.code}
-                for e in PEP257Checker().check_source(code, path)
-            ]
+            return [{
+                'lnum': e.line,
+                # Remove colon after error code ("D403: ..." => "D403 ...").
+                'text': (e.message[0:4] + e.message[5:]
+                        if e.message[4] == ':' else e.message),
+                'type': 'D',
+                'number': e.code
+            } for e in PEP257Checker().check_source(code, path)]
         except AssertionError:
             return []
