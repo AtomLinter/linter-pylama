@@ -1,3 +1,6 @@
+# 0.8.10
+* Fix and close #57
+
 # 0.8.9
 *  Update pylama to version 7.3.1
 
