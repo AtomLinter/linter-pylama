@@ -100,7 +100,8 @@ class LinterPylama
       if isortOnSave
         atom.workspace.observeTextEditors (editor) =>
           @isortOnSave = editor.onDidSave =>
-            helpers.exec @interpreter, [@isortPath, do editor.getPath]
+            if editor.getGrammar?().scopeName is 'source.python'
+              helpers.exec @interpreter, [@isortPath, do editor.getPath]
       else
         do @isortOnSave?.dispose
 
