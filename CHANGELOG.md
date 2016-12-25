@@ -1,3 +1,7 @@
+# 0.8.11
+* Update astroid to version 1.4.9
+* Update mccabe to version 0.5.3
+
 # 0.8.10
 * Fix and close #57
 
