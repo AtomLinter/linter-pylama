@@ -1,3 +1,8 @@
+# 0.8.12
+* Update pylama_pylint to version 3.0.1
+* Update pylama to version 7.3.3
+* Update pyflakes to version 1.5.0
+
 # 0.8.11
 * Update astroid to version 1.4.9
 * Update mccabe to version 0.5.3
