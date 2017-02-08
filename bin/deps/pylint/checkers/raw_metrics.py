@@ -1,5 +1,11 @@
-# Copyright (c) 2003-2016 LOGILAB S.A. (Paris, FRANCE).
-# http://www.logilab.fr/ -- mailto:contact@logilab.fr
+# -*- coding: utf-8 -*-
+# Copyright (c) 2007, 2010, 2013, 2015 LOGILAB S.A. (Paris, FRANCE) <contact@logilab.fr>
+# Copyright (c) 2013 Google, Inc.
+# Copyright (c) 2014 Arun Persaud <arun@nubati.net>
+# Copyright (c) 2015-2016 Claudiu Popa <pcmanticore@gmail.com>
+# Copyright (c) 2015 Mike Frysinger <vapier@gentoo.org>
+# Copyright (c) 2015 Ionel Cristian Maries <contact@ionelmc.ro>
+
 # Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 # For details: https://github.com/PyCQA/pylint/blob/master/COPYING
 
