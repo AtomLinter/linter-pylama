@@ -30,7 +30,7 @@ class LinterPylama
     (executablePath) =>
       if @executablePath
         @executablePath = executablePath
-        do initPylama
+        do @initPylama
       else
         @executablePath = executablePath
 
