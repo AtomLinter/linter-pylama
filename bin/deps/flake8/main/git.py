@@ -6,6 +6,7 @@
 """
 import contextlib
 import os
+import os.path
 import shutil
 import stat
 import subprocess
@@ -43,9 +44,18 @@ def hook(lazy=False, strict=False):
         filepaths = list(copy_indexed_files_to(tempdir, lazy))
         app.initialize(['.'])
         app.options.exclude = update_excludes(app.options.exclude, tempdir)
-        app.run_checks(filepaths)
+        app.options._running_from_vcs = True
+        # Apparently there are times when there are no files to check (e.g.,
+        # when amending a commit). In those cases, let's not try to run checks
+        # against nothing.
+        if filepaths:
+            app.run_checks(filepaths)
 
-    app.report_errors()
+    # If there were files to check, update their paths and report the errors
+    if filepaths:
+        update_paths(app.file_checker_manager, tempdir)
+        app.report_errors()
+
     if strict:
         return app.result_count
     return 0
@@ -201,6 +211,16 @@ def update_excludes(exclude_list, temporary_directory_path):
         if os.path.isabs(pattern) else pattern
         for pattern in exclude_list
     ]
+
+
+def update_paths(checker_manager, temp_prefix):
+    temp_prefix_length = len(temp_prefix)
+    for checker in checker_manager.checkers:
+        filename = checker.display_name
+        if filename.startswith(temp_prefix):
+            checker.display_name = os.path.relpath(
+                filename[temp_prefix_length:]
+            )
 
 
 _HOOK_TEMPLATE = """#!{executable}

@@ -66,7 +66,7 @@ class Flake8(setuptools.Command):
             if package_directory.startswith(seen_package_directories):
                 continue
 
-            seen_package_directories += (package_directory,)
+            seen_package_directories += (package_directory + '.',)
             yield package_directory
 
     def module_files(self):
@@ -94,4 +94,10 @@ class Flake8(setuptools.Command):
         self.flake8.report_statistics()
         self.flake8.report_benchmarks()
         self.flake8.formatter.stop()
-        self.flake8.exit()
+        try:
+            self.flake8.exit()
+        except SystemExit as e:
+            # Cause system exit only if exit code is not zero (terminates
+            # other possibly remaining/pending setuptools commands).
+            if e.code:
+                raise
