@@ -1,3 +1,10 @@
+# 0.8.13
+* Update pylint version to 1.6.5
+* Update flake8 version to 3.3.0
+* Update pycodestyle to version 2.3.1
+* Update mccabe version to 0.6.1
+* Fix and close #59
+
 # 0.8.12
 * Update pylama_pylint to version 3.0.1
 * Update pylama to version 7.3.3
