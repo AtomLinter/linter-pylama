@@ -1,4 +1,5 @@
 {statSync, realpathSync} = require "fs"
+os = require 'os'
 path = require 'path'
 
 {CompositeDisposable} = require 'atom'
@@ -147,6 +148,9 @@ class LinterPylama
           catch e
       else
         if @executablePath
+          homedir = os.homedir();
+          if homedir
+            @executablePath = @executablePath.replace /^~($|\/|\\)/, "#{homedir}$1"
           tmp = if not path.isAbsolute @executablePath then path.resolve @executablePath else @executablePath
           try
             @pylamaPath = tmp if do statSync(tmp).isFile
