@@ -1,3 +1,9 @@
+# 0.8.14
+* Expand and resolving '~' for pylama path
+* Update radon version to 1.5.0
+* Remove unused mando package
+* fix(package): update atom-linter to version 9.0.0 (#60)
+
 # 0.8.13
 * Update pylint version to 1.6.5
 * Update flake8 version to 3.3.0
