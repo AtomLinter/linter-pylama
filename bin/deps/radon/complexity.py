@@ -111,6 +111,7 @@ class Flake8Checker(object):
     '''Entry point for the Flake8 tool.'''
 
     name = 'radon'
+    version = __import__('radon').__version__
     _code = 'R701'
     _error_tmpl = 'R701: %r is too complex (%d)'
     no_assert = False
@@ -120,22 +121,20 @@ class Flake8Checker(object):
         '''Accept the AST tree and a filename (unused).'''
         self.tree = tree
 
-    version = property(lambda self: __import__('radon').__version__)
-
     @classmethod
     def add_options(cls, parser):  # pragma: no cover
         '''Add custom options to the global parser.'''
         options.register(
-                parser,
-                '--radon-max-cc', default=-1, action='store',
-                type='int', help='Radon complexity threshold',
-                parse_from_config=True
+            parser,
+            '--radon-max-cc', default=-1, action='store',
+            type='int', help='Radon complexity threshold',
+            parse_from_config=True
         )
         options.register(
-                parser,
-                '--radon-no-assert', dest='no_assert', action='store_true',
-                default=False, help='Radon will ignore assert statements',
-                parse_from_config=True,
+            parser,
+            '--radon-no-assert', dest='no_assert', action='store_true',
+            default=False, help='Radon will ignore assert statements',
+            parse_from_config=True,
         )
 
     @classmethod
