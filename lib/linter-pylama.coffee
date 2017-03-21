@@ -148,7 +148,7 @@ class LinterPylama
           catch e
       else
         if @executablePath
-          homedir = os.homedir();
+          homedir = os.homedir()
           if homedir
             @executablePath = @executablePath.replace /^~($|\/|\\)/, "#{homedir}$1"
           tmp = if not path.isAbsolute @executablePath then path.resolve @executablePath else @executablePath
