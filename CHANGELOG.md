@@ -1,3 +1,6 @@
+# 0.8.15
+* Fix and close #61
+
 # 0.8.14
 * Expand and resolving '~' for pylama path
 * Update radon version to 1.5.0
