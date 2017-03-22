@@ -194,7 +194,7 @@ class LinterPylama
     originFileName = fileName if not originFileName
     filePath = path.normalize path.dirname(originFileName)
     projectPath = atom.project.relativizePath(originFileName)[0]
-    tmpFilePath =  if fileName != originFileName then path.dirname(fileName) else projectPath
+    cwd = if fileName != originFileName then path.dirname(fileName) else projectPath
     env = @initEnv filePath, projectPath
     args = @initArgs filePath
     args.push fileName
@@ -210,7 +210,7 @@ class LinterPylama
       args: args
       options:
         env: env
-        cwd: tmpFilePath
+        cwd: cwd
         stream: 'both'
 
 
