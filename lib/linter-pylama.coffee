@@ -193,6 +193,7 @@ class LinterPylama
   makeLintInfo: (fileName, originFileName) =>
     originFileName = fileName if not originFileName
     filePath = path.normalize path.dirname(originFileName)
+    tmpFilePath =  if fileName != originFileName then path.dirname(fileName) else filePath
     projectPath = atom.project.relativizePath(originFileName)[0]
     env = @initEnv filePath, projectPath
     args = @initArgs filePath
@@ -209,7 +210,7 @@ class LinterPylama
       args: args
       options:
         env: env
-        cwd: projectPath
+        cwd: tmpFilePath
         stream: 'both'
 
 
