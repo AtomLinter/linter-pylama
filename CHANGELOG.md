@@ -1,3 +1,6 @@
+# 0.8.16
+* Fix and close #67
+
 # 0.8.15
 * Fix and close #61
 
