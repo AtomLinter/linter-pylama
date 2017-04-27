@@ -1,6 +1,4 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2015 LOGILAB S.A. (Paris, FRANCE) <contact@logilab.fr>
-# Copyright (c) 2016 Claudiu Popa <pcmanticore@gmail.com>
 
 # Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 # For details: https://github.com/PyCQA/pylint/blob/master/COPYING
@@ -16,7 +14,7 @@ class ElseifUsedChecker(BaseTokenChecker):
     """
 
     __implements__ = (ITokenChecker, IAstroidChecker)
-    name = 'elseifused'
+    name = 'else_if_used'
     msgs = {'R5501': ('Consider using "elif" instead of "else if"',
                       'else-if-used',
                       'Used when an else statement is immediately followed by '

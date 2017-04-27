@@ -1,5 +1,4 @@
 # Copyright (c) 2016 Claudiu Popa <pcmanticore@gmail.com>
-# Copyright (c) 2016 Moises Lopez <moylop260@vauxoo.com>
 
 # Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 # For details: https://github.com/PyCQA/pylint/blob/master/COPYING
@@ -10,7 +9,7 @@ from __future__ import absolute_import
 
 from mccabe import PathGraph as Mccabe_PathGraph, \
         PathGraphingAstVisitor as Mccabe_PathGraphingAstVisitor
-from pylint.checkers.base import BaseChecker
+from pylint import checkers
 from pylint.checkers.utils import check_messages
 from pylint.interfaces import HIGH, IAstroidChecker
 
@@ -117,7 +116,7 @@ class PathGraphingAstVisitor(Mccabe_PathGraphingAstVisitor):
             self.tail = bottom
 
 
-class McCabeMethodChecker(BaseChecker):
+class McCabeMethodChecker(checkers.BaseChecker):
     """Checks McCabe complexity cyclomatic threshold in methods and functions
     to validate a too complex code.
     """

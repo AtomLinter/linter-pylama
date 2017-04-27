@@ -1,10 +1,5 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2007, 2010, 2013, 2015 LOGILAB S.A. (Paris, FRANCE) <contact@logilab.fr>
-# Copyright (c) 2013 Google, Inc.
-# Copyright (c) 2014 Arun Persaud <arun@nubati.net>
 # Copyright (c) 2015-2016 Claudiu Popa <pcmanticore@gmail.com>
-# Copyright (c) 2015 Mike Frysinger <vapier@gentoo.org>
-# Copyright (c) 2015 Ionel Cristian Maries <contact@ionelmc.ro>
 
 # Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 # For details: https://github.com/PyCQA/pylint/blob/master/COPYING
@@ -17,12 +12,8 @@ Raw metrics checker
 
 import tokenize
 
-# pylint now requires pylint >= 2.2, so this is no longer necessary
-#if not hasattr(tokenize, 'NL'):
-#    raise ValueError("tokenize.NL doesn't exist -- tokenize module too old")
-
 from pylint.interfaces import ITokenChecker
-from pylint.utils import EmptyReport
+from pylint.exceptions import EmptyReportError
 from pylint.checkers import BaseTokenChecker
 from pylint.reporters import diff_string
 from pylint.reporters.ureports.nodes import Table
@@ -33,7 +24,7 @@ def report_raw_stats(sect, stats, old_stats):
     """
     total_lines = stats['total_lines']
     if not total_lines:
-        raise EmptyReport()
+        raise EmptyReportError()
     sect.description = '%s lines have been analyzed' % total_lines
     lines = ('type', 'number', '%', 'previous', 'difference')
     for node_type in ('code', 'docstring', 'comment', 'empty'):

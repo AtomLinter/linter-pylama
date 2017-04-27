@@ -1,11 +1,7 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2006-2007, 2010-2014 LOGILAB S.A. (Paris, FRANCE) <contact@logilab.fr>
-# Copyright (c) 2012-2014 Google, Inc.
-# Copyright (c) 2014 Brett Cannon <brett@python.org>
-# Copyright (c) 2014 Arun Persaud <arun@nubati.net>
-# Copyright (c) 2015-2016 Claudiu Popa <pcmanticore@gmail.com>
+# Copyright (c) 2013-2014 Google, Inc.
 # Copyright (c) 2015 Florian Bruhin <me@the-compiler.org>
-# Copyright (c) 2015 Ionel Cristian Maries <contact@ionelmc.ro>
+# Copyright (c) 2015-2016 Claudiu Popa <pcmanticore@gmail.com>
 
 # Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 # For details: https://github.com/PyCQA/pylint/blob/master/COPYING
@@ -17,6 +13,7 @@
 """
 from __future__ import print_function
 
+import os
 import warnings
 import sys
 
@@ -193,9 +190,11 @@ class ColorizedTextReporter(TextReporter):
         TextReporter.__init__(self, output)
         self.color_mapping = color_mapping or \
                              dict(ColorizedTextReporter.COLOR_MAPPING)
-        if sys.platform == 'win32':
-            import colorama
-            self.out = colorama.AnsiToWin32(self.out)
+        ansi_terms = ['xterm-16color', 'xterm-256color']
+        if os.environ.get('TERM') not in ansi_terms:
+            if sys.platform == 'win32':
+                import colorama
+                self.out = colorama.AnsiToWin32(self.out)
 
     def _get_decoration(self, msg_id):
         """Returns the tuple color, style associated with msg_id as defined

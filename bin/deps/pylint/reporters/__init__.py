@@ -1,13 +1,6 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2006, 2010, 2012-2014 LOGILAB S.A. (Paris, FRANCE) <contact@logilab.fr>
-# Copyright (c) 2012-2014 Google, Inc.
-# Copyright (c) 2012 FELD Boris <lothiraldan@gmail.com>
-# Copyright (c) 2014 Brett Cannon <brett@python.org>
+# Copyright (c) 2013-2014 Google, Inc.
 # Copyright (c) 2014-2016 Claudiu Popa <pcmanticore@gmail.com>
-# Copyright (c) 2014 Ricardo Gemignani <ricardo.gemignani@gmail.com>
-# Copyright (c) 2014 Arun Persaud <arun@nubati.net>
-# Copyright (c) 2015 Ionel Cristian Maries <contact@ionelmc.ro>
-# Copyright (c) 2015 Simu Toni <simutoni@gmail.com>
 
 # Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 # For details: https://github.com/PyCQA/pylint/blob/master/COPYING
@@ -68,8 +61,9 @@ class BaseReporter(object):
         def encode(self, string):
             if not isinstance(string, six.text_type):
                 return string
+
             encoding = (getattr(self.out, 'encoding', None) or
-                        locale.getdefaultlocale()[1] or
+                        locale.getpreferredencoding(do_setlocale=False) or
                         sys.getdefaultencoding())
             # errors=replace, we don't want to crash when attempting to show
             # source code line that can't be encoded with the current locale
@@ -86,12 +80,6 @@ class BaseReporter(object):
         if hasattr(layout, 'report_id'):
             layout.children[0].children[0].data += ' (%s)' % layout.report_id
         self._display(layout)
-
-    def display_results(self, layout):
-        warnings.warn("display_results is deprecated, use display_reports instead. "
-                      "The former will be removed in Pylint 2.0.",
-                      DeprecationWarning)
-        self.display_reports(layout)
 
     def _display(self, layout):
         """display the layout"""
