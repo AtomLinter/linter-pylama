@@ -1,3 +1,9 @@
+# 0.8.17
+* Allow Pyflakes with Radon. Close #71
+* Update pylint to version 1.7.1
+* Update astroid to version 1.5.2
+* Update wrapt to version 1.10.10
+
 # 0.8.16
 * Fix and close #67
 
