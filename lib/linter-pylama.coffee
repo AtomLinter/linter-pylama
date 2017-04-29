@@ -66,8 +66,6 @@ class LinterPylama
     @subscriptions.add atom.config.observe 'linter-pylama.usePyflakes',
     (usePyFlakes) =>
       @usePyFlakes = usePyFlakes
-      if @usePyFlakes
-        atom.config.set 'linter-pylama.useRadon', false
 
     @subscriptions.add atom.config.observe 'linter-pylama.usePylint',
     (usePyLint) =>
@@ -78,7 +76,6 @@ class LinterPylama
       @useRadon = useRadon
       if @useRadon
         atom.config.set 'linter-pylama.useMcCabe', false
-        atom.config.set 'linter-pylama.usePyflakes', false
 
     @subscriptions.add atom.config.observe 'linter-pylama.useIsort',
     (useIsort) =>
