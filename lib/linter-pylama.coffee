@@ -1,4 +1,4 @@
-{statSync, realpathSync} = require "fs"
+{singledispatchstatSync, realpathSync} = require "fs"
 os = require 'os'
 path = require 'path'
 
@@ -66,7 +66,7 @@ class LinterPylama
     @subscriptions.add atom.config.observe 'linter-pylama.usePyflakes',
     (usePyFlakes) =>
       @usePyFlakes = usePyFlakes
-      if @usePyflakes
+      if @usePyFlakes
         atom.config.set 'linter-pylama.useRadon', false
 
     @subscriptions.add atom.config.observe 'linter-pylama.usePylint',
