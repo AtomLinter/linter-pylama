@@ -1,4 +1,4 @@
-{singledispatchstatSync, realpathSync} = require "fs"
+{statSync, realpathSync} = require "fs"
 os = require 'os'
 path = require 'path'
 
