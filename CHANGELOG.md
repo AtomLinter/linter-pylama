@@ -1,3 +1,6 @@
+# 0.8.18
+* Unbreak external pylama (@ddaanet)
+
 # 0.8.17
 * Allow Pyflakes with Radon. Close #71
 * Update pylint to version 1.7.1
