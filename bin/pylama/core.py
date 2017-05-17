@@ -186,7 +186,7 @@ class CodeContext(object):
         """ Open a file and read it. """
         if self.code is None:
             LOGGER.info("File is reading: %s", self.path)
-            self._file = open(self.path, 'rU')
+            self._file = open(self.path, 'rU', encoding='utf8')
             self.code = self._file.read()
         return self
 
