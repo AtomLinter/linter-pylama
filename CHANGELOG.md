@@ -1,3 +1,6 @@
+# 0.8.20
+* Fix and close #75
+
 # 0.8.18
 * Unbreak external pylama (@ddaanet)
 
