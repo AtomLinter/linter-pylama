@@ -1,4 +1,4 @@
-{statSync, realpathSync} = require "fs"
+{readFile, statSync, realpathSync} = require "fs"
 os = require 'os'
 path = require 'path'
 
@@ -104,8 +104,7 @@ class LinterPylama
         do @isortOnSave?.dispose
 
     @subscriptions.add atom.commands.add 'atom-workspace', 'linter-pylama:isort', =>
-      editor = atom.workspace.getActiveTextEditor()
-      helpers.exec @interpreter, [@isortPath, do editor.getPath]
+      @isortOnFly do atom.workspace.getActiveTextEditor
 
 
   destroy: ->
@@ -115,6 +114,23 @@ class LinterPylama
 
   isLintOnFly: ->
     return @lintOnFly
+
+
+  isortOnFly: (textEditor) =>
+    fileName = path.basename do textEditor.getPath
+    cursorPosition = do textEditor.getCursorBufferPosition
+    bufferText = do textEditor.getText
+    helpers.tempFile fileName, bufferText, (tmpFilePath) =>
+      tmpFilePath = realpathSync tmpFilePath
+      helpers.exec(@interpreter, [@isortPath, tmpFilePath]).then (output) =>
+        readFile tmpFilePath, (err, data) =>
+          if err
+            console.log err
+          else if data
+            dataStr = do data.toString
+            if dataStr isnt bufferText
+              textEditor.setText do data.toString
+              textEditor.setCursorBufferPosition cursorPosition
 
 
   initEnv: (filePath, projectPath) ->
