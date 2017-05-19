@@ -256,12 +256,12 @@ class LinterPylama
             colEnd = 3 if colEnd - col < 3
             colEnd = if colEnd < editorLine.length then colEnd else editorLine.length
 
-        linter_msg.location = {}
-        linter_msg.location.file = lintInfo.fileName
-        linter_msg.location.position = [
-          [line, col]
-          [line, colEnd]
-        ]
+        linter_msg.location =
+          file: lintInfo.fileName
+          position: [
+            [line, col]
+            [line, colEnd]
+          ]
         linter_msg
 
 
