@@ -232,12 +232,17 @@ class LinterPylama
       atom.notifications.addWarning output['stderr'] if output['stderr']
       console.log output['stdout'] if do atom.inDevMode
       helpers.parse(output['stdout'], regex).map (message) ->
-        message.type = '' if not message.type
-        message.filePath = '' if not message.filePath
-        code = "#{message.type}#{message.filePath}"
-        message.type = if message.type in ['E', 'F'] then 'Error' else 'Warning'
-        message.filePath = lintInfo.fileName
-        message.text = if code then "#{code} #{message.text}" else "#{message.text}"
+        linter_msg = {}
+
+        if message.type
+          linter_msg.severity = if message.type in ['E', 'F'] then 'error' else 'warning'
+        else
+          linter_msg.severity = 'info'
+
+        code = message.filePath or ''
+        code = "#{message.type}#{code}" if message.type
+        linter_msg.excerpt = if code then "#{code} #{message.text}" else "#{message.text}"
+
         line = message.range[0][0]
         col = message.range[0][1]
         editorLine = textEditor.buffer.lines[line]
@@ -250,11 +255,14 @@ class LinterPylama
           else
             colEnd = 3 if colEnd - col < 3
             colEnd = if colEnd < editorLine.length then colEnd else editorLine.length
-        message.range = [
+
+        linter_msg.location = {}
+        linter_msg.location.file = lintInfo.fileName
+        linter_msg.location.position = [
           [line, col]
           [line, colEnd]
         ]
-        message
+        linter_msg
 
 
   lintFileOnFly: (textEditor) =>

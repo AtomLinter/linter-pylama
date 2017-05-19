@@ -117,7 +117,8 @@ module.exports =
         'source.python'
         'source.python.django'
       ]
+      name: 'Pylama'
       scope: 'file'
       lint: @provider.lint
-      lintOnFly: do @provider.isLintOnFly
+      lintsOnChange: do @provider.isLintOnFly
     }
