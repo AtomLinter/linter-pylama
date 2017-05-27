@@ -106,8 +106,6 @@ class LinterPylama
       atom.commands.add 'atom-workspace', 'linter-pylama:isort', =>
         @isortOnFly do atom.workspace.getActiveTextEditor
 
-    @pylamaLinters = do @initPylamaLinters
-
 
   destroy: ->
     do @subscriptions?.dispose
@@ -194,6 +192,7 @@ class LinterPylama
         args.push.apply args, ['--ignore', @ignoreErrorsAndWarnings]
       if @skipFiles then args.push.apply args, ['--skip', @skipFiles]
 
+      if not @pylamaLinters then @pylamaLinters = do @initPylamaLinters
       args.push '--linters'
       if @pylamaLinters then args.push @pylamaLinters else args.push 'none'
     args
