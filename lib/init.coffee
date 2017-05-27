@@ -128,7 +128,7 @@ module.exports = {
 
   provideLinter: ->
     LinterPylama = require './linter-pylama.coffee'
-    @provider = new LinterPylama()
+    provider = new LinterPylama()
     {
       grammarScopes: [
         'source.python'
@@ -136,7 +136,7 @@ module.exports = {
       ]
       name: 'Pylama'
       scope: 'file'
-      lint: @provider.lint
-      lintsOnChange: do @provider.isLintOnFly
+      lint: provider.lint
+      lintsOnChange: do provider.isLintOnFly
     }
 }

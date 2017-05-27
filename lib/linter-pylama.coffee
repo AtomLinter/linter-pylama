@@ -248,8 +248,7 @@ class LinterPylama
 
   lint: (textEditor) =>
     return [] if not @pylamaPath
-    return @lintFileOnFly textEditor if @lintOnFly
-    @lintOnSave textEditor
+    if @lintOnFly then @lintFileOnFly textEditor else @lintOnSave textEditor
 
 
 module.exports = LinterPylama
