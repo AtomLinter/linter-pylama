@@ -156,7 +156,7 @@ class LinterPylama
 
 
   initPylamaLinters: =>
-    linters = [
+    linters_args = [
       if @usePyLint then linters.pylint else ''
       if @useMcCabe then linters.mccabe else ''
       if @usePEP8 then linters.pep8 else ''
@@ -165,7 +165,7 @@ class LinterPylama
       if @useRadon then linters.radon else ''
       if @useIsort then linters.isort else ''
     ].filter (e) -> e isnt ''
-    do linters.join
+    do linters_args.join
 
 
   initArgs: (curDir) =>

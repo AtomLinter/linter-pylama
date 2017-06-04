@@ -138,8 +138,6 @@ module.exports = {
 
   activate: ->
     require('atom-package-deps').install 'linter-pylama'
-    console.log 'Linter-Pylama: package loaded,
-                 ready to get initialized by AtomLinter.'
 
 
   provideLinter: ->
