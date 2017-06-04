@@ -12,15 +12,29 @@ module.exports = {
     interpreter: {
       type: 'string'
       default: 'python'
-      description: 'Python interpreter for internal Pylama
-      (python, python3, /usr/bin/python, /usr/local/bin/python3, etc.)'
+      description: '''Python interpreter for `internal` Pylama.
+      Comma-separated list of path to Python executables. The first path has a
+      higher priority over the last one. By default linter-pylama will
+      automatically try to find virtual environments or global Python executable.
+      If you use this config, automatic lookup will have lowest priority.
+      You can use `$PROJECT` or `$PROJECT_NAME` substitution for project-specific
+      paths.\n
+      For example:
+      `~/.venv/$PROJECT_NAME/bin/python, $PROJECT/venv/bin/python, /usr/bin/pytho3, python`
+      '''
       order: 1
     }
     executablePath: {
       type: 'string'
       default: 'pylama'
-      description: 'Excutable path for external Pylama.
-      Example: /usr/local/bin/pylama'
+      description: """Excutable path for `external` Pylama.
+      Comma-separated list of path to Pylama executables. The first path has a
+      higher priority over the last one.
+      You can use `$PROJECT` or `$PROJECT_NAME` substitution for project-specific
+      paths.\n
+      For example:
+      `~/.venv/$PROJECT_NAME/bin/pylama, $PROJECT/venv/bin/pylama, /usr/local/bin/pylama, pylama`
+      """
       order: 2
     }
     configFileLoad: {
@@ -41,17 +55,19 @@ module.exports = {
     ignoreErrorsAndWarnings: {
       type: 'string'
       default: 'D203,D212,D213,D404'
-      description: 'Comma-separated list of errors and warnings.
-      Example: ED203,D212,D213,D404,111,E114,D101,D102,DW0311.
-      See more: https://goo.gl/jeYN96, https://goo.gl/O8xhLM'
+      description: """Comma-separated list of errors and warnings.
+      For example: `ED203,D212,D213,D404,111,E114,D101,D102,DW0311`
+      See more: https://goo.gl/jeYN96, https://goo.gl/O8xhLM
+      """
       order: 5
     }
     skipFiles: {
       type: 'string'
       default: ''
-      description: 'Skip files by masks.
+      description: """Skip files by masks.
       Comma-separated list of a file names.
-      Example: */messages.py,*/__init__.py'
+      For example: `*/messages.py,*/__init__.py`
+      """
       order: 6
     }
     lintOnFly: {

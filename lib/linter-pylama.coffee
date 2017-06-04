@@ -1,10 +1,11 @@
-{ readFile, statSync, realpathSync } = require "fs"
 os = require 'os'
 path = require 'path'
+{ readFile, statSync, realpathSync } = require "fs"
 
+helpers = require './helpers'
 { CompositeDisposable } = require 'atom'
 { exec, findCached, tempFile } = require 'atom-linter'
-helpers = require './helpers'
+{ linters, linter_paths } = require './constants.coffee'
 
 
 class LinterPylama
@@ -14,7 +15,7 @@ class LinterPylama
     atom.config.observe 'linter-pylama.pylamaVersion', (pylamaVersion) =>
       if @pylamaVersion
         @pylamaVersion = pylamaVersion
-        do @initPylama
+        @pylamaPath = null
       else
         @pylamaVersion = pylamaVersion
 
@@ -22,14 +23,17 @@ class LinterPylama
     atom.config.observe 'linter-pylama.executablePath', (executablePath) =>
       if @executablePath
         @executablePath = executablePath
-        do @initPylama
+        @pylamaPath = null
       else
         @executablePath = executablePath
 
     @subscriptions.add \
     atom.config.observe 'linter-pylama.interpreter', (interpreter) =>
-      @interpreter = interpreter
-      do @initPylama
+      if @interpreter
+        @interpreter = interpreter
+        @pylamaPath = null
+      else
+        @interpreter = interpreter
 
     @subscriptions.add \
     atom.config.observe 'linter-pylama.ignoreErrorsAndWarnings',
@@ -98,7 +102,7 @@ class LinterPylama
         atom.workspace.observeTextEditors (editor) =>
           @isortOnSave = editor.onDidSave =>
             if editor.getGrammar?().scopeName is 'source.python'
-              exec @interpreter, [helpers.paths.isort, do editor.getPath]
+              exec @interpreter, [linter_paths.isort, do editor.getPath]
       else
         do @isortOnSave?.dispose
 
@@ -122,7 +126,7 @@ class LinterPylama
     bufferText = do textEditor.getText
     tempFile fileName, bufferText, (tmpFilePath) =>
       tmpFilePath = realpathSync tmpFilePath
-      exec(@interpreter, [helpers.paths.isort, tmpFilePath]).then (output) ->
+      exec(@interpreter, [linter_paths.isort, tmpFilePath]).then (output) ->
         readFile tmpFilePath, (err, data) ->
           if err
             console.log err
@@ -134,47 +138,32 @@ class LinterPylama
 
 
   initPylama: =>
-    if @pylamaVersion is 'external' and @executablePath isnt @pylamaPath
-      @pylamaPath = ''
-      if /^(pylama|pylama\.exe)$/.test @executablePath
-        processPath = process.env.PATH or process.env.Path
-        for dir in processPath.split path.delimiter
-          tmp = path.join dir, @executablePath
-          try
-            @pylamaPath = tmp if do statSync(tmp).isFile
-            break
-          catch e
-      else
-        if @executablePath
-          homedir = os.homedir()
-          if homedir
-            @executablePath = @executablePath.replace /^~($|\/|\\)/, "#{homedir}$1"
-          if not path.isAbsolute @executablePath
-            tmp = path.resolve @executablePath
-          else
-            tmp = @executablePath
-          try
-            @pylamaPath = tmp if do statSync(tmp).isFile
-          catch e
-
+    if @pylamaVersion is 'external'
+      [@pylamaPath, @virtualEnv] = helpers.getExecutable @executablePath
       if not @pylamaPath
         atom.notifications.addError 'Pylama executable not found', {
-            detail: "[linter-pylama] `#{@executablePath}` executable file not found.
+            detail: "[linter-pylama] Pylama executable not found in `#{@executablePath}`.
             \nPlease set the correct path to `pylama`."
           }
     else
-      @pylamaPath = helpers.paths.pylama
+      [@interpreter, @virtualEnv] = helpers.getExecutable @interpreter
+      @pylamaPath = linter_paths.pylama
+      if not @interpreter
+        atom.notifications.addError 'Python executable not found', {
+            detail: "[linter-pylama] Python executable not found in `#{@interpreter}`.
+            \nPlease set the correct path to `python`."
+          }
 
 
   initPylamaLinters: =>
     linters = [
-      if @usePyLint then 'pylint' else ''
-      if @useMcCabe then 'mccabe' else ''
-      if @usePEP8 then 'pep8' else ''
-      if @usePEP257 then 'pep257' else ''
-      if @usePyFlakes then 'pyflakes' else ''
-      if @useRadon then 'radon' else ''
-      if @useIsort then 'isort' else ''
+      if @usePyLint then linters.pylint else ''
+      if @useMcCabe then linters.mccabe else ''
+      if @usePEP8 then linters.pep8 else ''
+      if @usePEP257 then linters.pep257 else ''
+      if @usePyFlakes then linters.pyflakes else ''
+      if @useRadon then linters.radon else ''
+      if @useIsort then linters.isort else ''
     ].filter (e) -> e isnt ''
     do linters.join
 
@@ -206,7 +195,7 @@ class LinterPylama
       cwd = path.dirname(fileName)
     else
       cwd = projectPath
-    env = helpers.initEnv filePath, projectPath
+    env = helpers.initEnv filePath, projectPath, @virtualEnv
     args = @initArgs filePath
     args.push fileName
     console.log "#{@pylamaPath} #{args}" if do atom.inDevMode
@@ -246,6 +235,7 @@ class LinterPylama
 
 
   lint: (textEditor) =>
+    do @initPylama if not @pylamaPath
     return [] if not @pylamaPath
     if @lintOnFly then @lintFileOnFly textEditor else @lintOnSave textEditor
 

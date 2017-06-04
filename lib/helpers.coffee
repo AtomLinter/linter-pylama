@@ -1,23 +1,77 @@
-{ exec, parse } = require 'atom-linter'
 path = require 'path'
+os = require 'os'
+{ statSync } = require 'fs'
 
-packagePath = path.dirname(__dirname)
-regex =
-  '(?<file_>.+):' +
-  '(?<line>\\d+):' +
-  '(?<col>\\d+):' +
-  '\\s+' +
-  '(((?<type>[ECDFINRW])(?<file>\\d+)(:\\s+|\\s+))|(.*?))' +
-  '(?<message>.+)'
+{ exec, parse } = require 'atom-linter'
+{ regex } = require './constants.coffee'
+
+
+homeDirSubstitution = (pth) ->
+  homedir = os.homedir()
+  if homedir
+    pth = pth.replace /^~($|\/|\\)/, "#{homedir}$1"
+  if not path.isAbsolute pth
+    pth = path.resolve pth
+  pth
+
+
+pathSubstitution = (pth) ->
+  [project, ...] = do atom.project.getPaths
+  if not project
+    return pth
+  [..., projectName] = project.split path.sep
+  pth = pth.replace /\$PROJECT_NAME/i, projectName
+  pth.replace /\$PROJECT/i, project
+
+
+isValidExecutable = (pth) ->
+  try
+    do statSync(pth).isFile
+  catch e
+    false
+
+
+where = (pth) ->
+  [projectPath, ...] = do atom.project.getPaths
+  paths = if projectPath then [projectPath] else []
+  paths.push.apply paths, (process.env.PATH or process.env.Path).split path.delimiter
+  for dir in paths
+    tmp = path.join dir, pth
+    return tmp if isValidExecutable tmp
+  null
+
+
+getVenvPath = (pth) ->
+  i = pth.indexOf '$PROJECT_NAME'
+  if i != -1
+    return pth.substr(0, i + '$PROJECT_NAME'.length)
+  i = pth.indexOf '$PROJECT'
+  if i != -1
+    return pth.substr(0, i + '$PROJECT'.length)
+  ''
+
 
 module.exports = {
-  paths: {
-    isort: path.join packagePath, 'bin', 'isort.py'
-    pylama: path.join packagePath, 'bin', 'pylama.py'
-  }
+  getExecutable: (executable) ->
+    if not executable
+      return [null, null]
+    pths = executable.split ','
+    for pth in pths
+      pth = do pth.trim
+      if pth.search(path.sep) == -1
+        p = where pth
+        if p then return [p, null] else continue
+      pth = homeDirSubstitution pth
+      p = pathSubstitution pth
+      if isValidExecutable p
+        @pylamaPath = p
+        if p isnt pth
+          return [p, pathSubstitution getVenvPath pth]
+        return [p, null]
+    return [null, null]
 
 
-  initEnv: (filePath, projectPath) ->
+  initEnv: (filePath, projectPath, virtualEnv = null) ->
     pythonPath = []
 
     pythonPath.push filePath if filePath
@@ -27,6 +81,9 @@ module.exports = {
     if env.PWD
       pwd = path.normalize env.PWD
       pythonPath.push pwd if pwd and pwd not in pythonPath
+
+    if virtualEnv
+      env.VIRTUAL_ENV = virtualEnv
 
     env.PYLAMA = pythonPath.join path.delimiter
     env

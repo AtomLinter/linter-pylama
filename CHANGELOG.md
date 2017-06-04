@@ -1,3 +1,7 @@
+# 0.9.0
+* Refactoring and other enhancements
+* Close #38
+
 # 0.8.20
 * Fix and close #75
 
