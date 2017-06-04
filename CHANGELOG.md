@@ -1,3 +1,7 @@
+# 0.9.1
+* Fixed shadowing of the global variable
+* Fix camelCase typo
+
 # 0.9.0
 * Refactoring and other enhancements
 * Close #38
