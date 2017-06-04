@@ -9,7 +9,7 @@ module.exports = {
   }
 
   linters: {
-    pyLint: 'pylint'
+    pylint: 'pylint'
     mccabe: 'mccabe'
     pep8: 'pep8'
     pep257: 'pep257'
