@@ -31,6 +31,8 @@ notifications:
 
 sudo: false
 
+dist: trusty
+
 addons:
   apt:
     packages:
@@ -41,4 +43,3 @@ addons:
 
 git:
   depth: 10
-
