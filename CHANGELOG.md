@@ -1,3 +1,7 @@
+# 0.9.2
+* Added default values (python.exe and pylama.exe) for Windows
+* Fix #77
+
 # 0.9.1
 * Fixed shadowing of the global variable
 * Fix camelCase typo
