@@ -30,10 +30,10 @@ class LinterPylama
     @subscriptions.add \
     atom.config.observe 'linter-pylama.interpreter', (interpreter) =>
       if @interpreter
-        @interpreter = interpreter
+        @interpreterPath = @interpreter = interpreter
         @pylamaPath = null
       else
-        @interpreter = interpreter
+        @interpreterPath = @interpreter = interpreter
 
     @subscriptions.add \
     atom.config.observe 'linter-pylama.ignoreErrorsAndWarnings',
@@ -150,7 +150,7 @@ class LinterPylama
       @pylamaPath = linter_paths.pylama
       if not @interpreter
         atom.notifications.addError 'Python executable not found', {
-            detail: "[linter-pylama] Python executable not found in `#{@interpreter}`.
+            detail: "[linter-pylama] Python executable not found in `#{@interpreterPath}`.
             \nPlease set the correct path to `python`."
           }
 

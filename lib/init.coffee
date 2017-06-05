@@ -11,7 +11,7 @@ module.exports = {
     }
     interpreter: {
       type: 'string'
-      default: 'python'
+      default: 'python, python.exe'
       description: '''Python interpreter for `internal` Pylama.
       Comma-separated list of path to Python executables. The first path has a
       higher priority over the last one. By default linter-pylama will
@@ -26,7 +26,7 @@ module.exports = {
     }
     executablePath: {
       type: 'string'
-      default: 'pylama'
+      default: 'pylama, pylama.exe'
       description: """Excutable path for `external` Pylama.
       Comma-separated list of path to Pylama executables. The first path has a
       higher priority over the last one.
@@ -56,7 +56,7 @@ module.exports = {
       type: 'string'
       default: 'D203,D212,D213,D404'
       description: """Comma-separated list of errors and warnings.
-      For example: `ED203,D212,D213,D404,111,E114,D101,D102,DW0311`
+      For example: `ED203,D212,D213,D404,E111,E114,D101,D102,DW0311`
       See more: https://goo.gl/jeYN96, https://goo.gl/O8xhLM
       """
       order: 5
