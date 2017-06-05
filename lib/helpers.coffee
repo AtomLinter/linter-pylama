@@ -58,7 +58,7 @@ module.exports = {
     pths = executable.split ','
     for pth in pths
       pth = do pth.trim
-      if pth.split(path.sep) == 1
+      if pth.split(path.sep).length == 1
         p = where pth
         if p then return [p, null] else continue
       pth = homeDirSubstitution pth
