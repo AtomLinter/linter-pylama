@@ -1,3 +1,7 @@
+# 0.9.3
+* Fix #79
+* Update Travis CI configuration, fix path comparison in specs, а few minor cleanups (@Arcanemagus)
+
 # 0.9.2
 * Added default values (python.exe and pylama.exe) for Windows
 * Fix #77
