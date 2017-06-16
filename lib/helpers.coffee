@@ -107,7 +107,7 @@ module.exports = {
 
         line = message.range[0][0]
         col = message.range[0][1]
-        editorLine = textEditor.buffer.lines[line]
+        editorLine = textEditor.getBuffer().getLines()[line]
         if not editorLine or not editorLine.length
           colEnd = 0
         else
