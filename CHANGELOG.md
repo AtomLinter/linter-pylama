@@ -1,3 +1,6 @@
+# 0.9.4
+* Update wrapt to version 1.10.11, pyflakes to version 1.6.0), pylint to version 1.7.2, pylama to version 7.4.1
+
 # 0.9.3
 * Fix #79
 * Update Travis CI configuration, fix path comparison in specs, а few minor cleanups (@Arcanemagus)
