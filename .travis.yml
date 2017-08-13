@@ -12,12 +12,14 @@ matrix:
       before_install:
         - brew update
         - brew install python || brew upgrade python
+        - ln -s /usr/local/bin/python2 /usr/local/bin/python && ln -s /usr/local/bin/pip2 /usr/local/bin/pip
     - os: osx
       language: generic
       env: ATOM_CHANNEL=beta
       before_install:
         - brew update
         - brew install python || brew upgrade python
+        - ln -s /usr/local/bin/python2 /usr/local/bin/python && ln -s /usr/local/bin/pip2 /usr/local/bin/pip
 
 install:
   - pip install pylama pylama_pylint
