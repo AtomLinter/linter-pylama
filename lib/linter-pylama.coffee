@@ -204,6 +204,11 @@ class LinterPylama
     else
       command = @interpreter
       args.unshift @pylamaPath
+    # An external Python variant, pylama or pylint can take their time
+    if @usePyLint or @pylamaVersion is 'external'
+        timeout = 60000
+    else
+        timeout = 10000
     info = {
       fileName: originFileName
       command: command
@@ -212,6 +217,7 @@ class LinterPylama
         env: env
         cwd: cwd
         stream: 'both'
+        timeout: timeout
       }
     }
 
