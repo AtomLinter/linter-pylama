@@ -661,11 +661,6 @@ class OptionsManagerMixIn(object):
         if self.quiet:
             return
 
-        if use_config_file:
-            msg = 'Using config file {0}'.format(os.path.abspath(config_file))
-        else:
-            msg = 'No config file found, using default configuration'
-        print(msg, file=sys.stderr)
 
     def load_config_file(self):
         """dispatch values previously read from a configuration file to each
