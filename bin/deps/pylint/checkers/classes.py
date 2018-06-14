@@ -1,10 +1,22 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2006-2016 LOGILAB S.A. (Paris, FRANCE) <contact@logilab.fr>
-# Copyright (c) 2012, 2014 Google, Inc.
-# Copyright (c) 2013-2016 Claudiu Popa <pcmanticore@gmail.com>
+# Copyright (c) 2010 Maarten ter Huurne <maarten@treewalker.org>
+# Copyright (c) 2012-2014 Google, Inc.
+# Copyright (c) 2012 FELD Boris <lothiraldan@gmail.com>
+# Copyright (c) 2013-2017 Claudiu Popa <pcmanticore@gmail.com>
+# Copyright (c) 2014 Michal Nowikowski <godfryd@gmail.com>
+# Copyright (c) 2014 Brett Cannon <brett@python.org>
+# Copyright (c) 2014 Arun Persaud <arun@nubati.net>
+# Copyright (c) 2014 David Pursehouse <david.pursehouse@gmail.com>
 # Copyright (c) 2015 Dmitry Pribysh <dmand@yandex.ru>
-# Copyright (c) 2016 Moises Lopez - https://www.vauxoo.com/ <moylop260@vauxoo.com>
-# Copyright (c) 2016 Łukasz Rogalski <rogalski.91@gmail.com>
+# Copyright (c) 2015 Ionel Cristian Maries <contact@ionelmc.ro>
+# Copyright (c) 2016-2017 Łukasz Rogalski <rogalski.91@gmail.com>
+# Copyright (c) 2016 Alexander Todorov <atodorov@otb.bg>
+# Copyright (c) 2016 Anthony Foglia <afoglia@users.noreply.github.com>
+# Copyright (c) 2016 Florian Bruhin <me@the-compiler.org>
+# Copyright (c) 2016 Moises Lopez <moylop260@vauxoo.com>
+# Copyright (c) 2016 Jakub Wilk <jwilk@jwilk.net>
+# Copyright (c) 2017 hippo91 <guillaume.peillex@gmail.com>
 
 # Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 # For details: https://github.com/PyCQA/pylint/blob/master/COPYING
@@ -134,6 +146,82 @@ def _positional_parameters(method):
     return positional
 
 
+def _get_node_type(node, potential_types):
+    """
+    Return the type of the node if it exists in potential_types.
+
+    Args:
+        node (astroid.node): node to get the type of.
+        potential_types (tuple): potential types of the node.
+
+    Returns:
+        type: type of the node or None.
+    """
+    for potential_type in potential_types:
+        if isinstance(node, potential_type):
+            return potential_type
+    return None
+
+
+def _check_arg_equality(node_a, node_b, attr_name):
+    """
+    Check equality of nodes based on the comparison of their attributes named attr_name.
+
+    Args:
+        node_a (astroid.node): first node to compare.
+        node_b (astroid.node): second node to compare.
+        attr_name (str): name of the nodes attribute to use for comparison.
+
+    Returns:
+        bool: True if node_a.attr_name == node_b.attr_name, False otherwise.
+    """
+    return getattr(node_a, attr_name) == getattr(node_b, attr_name)
+
+
+def _has_different_parameters_default_value(original, overridden):
+    """
+    Check if original and overridden methods arguments have different default values
+
+    Return True if one of the overridden arguments has a default
+    value different from the default value of the original argument
+    If one of the method doesn't have argument (.args is None)
+    return False
+    """
+    if original.args is None or overridden.args is None:
+        return False
+
+    original_param_names = [param.name for param in original.args]
+    default_missing = object()
+    for param_name in original_param_names:
+        try:
+            original_default = original.default_value(param_name)
+        except astroid.exceptions.NoDefault:
+            original_default = default_missing
+        try:
+            overridden_default = overridden.default_value(param_name)
+        except astroid.exceptions.NoDefault:
+            overridden_default = default_missing
+
+        default_list = [arg == default_missing for arg in (original_default, overridden_default)]
+        if any(default_list) and not all(default_list):
+            # Only one arg has no default value
+            return True
+
+        astroid_type_compared_attr = {astroid.Const: "value", astroid.ClassDef: "name",
+                                      astroid.Tuple: "elts", astroid.List: "elts"}
+        handled_types = tuple(astroid_type for astroid_type in astroid_type_compared_attr)
+        original_type = _get_node_type(original_default, handled_types)
+        if original_type:
+            # We handle only astroid types that are inside the dict astroid_type_compared_attr
+            if not isinstance(overridden_default, original_type):
+                # Two args with same name but different types
+                return True
+            if not _check_arg_equality(original_default, overridden_default,
+                                       astroid_type_compared_attr[original_type]):
+                # Two args with same type but different values
+                return True
+    return False
+
 def _has_different_parameters(original, overridden, dummy_parameter_regex):
     zipped = six.moves.zip_longest(original, overridden)
     for original_param, overridden_param in zipped:
@@ -233,9 +321,9 @@ def _called_in_methods(func, klass, methods):
         except astroid.NotFoundError:
             continue
         for infer_method in infered:
-            for callfunc in infer_method.nodes_of_class(astroid.Call):
+            for call in infer_method.nodes_of_class(astroid.Call):
                 try:
-                    bound = next(callfunc.func.infer())
+                    bound = next(call.func.infer())
                 except (astroid.InferenceError, StopIteration):
                     continue
                 if not isinstance(bound, astroid.BoundMethod):
@@ -298,16 +386,26 @@ def _safe_infer_call_result(node, caller, context=None):
         inferit = node.infer_call_result(caller, context=context)
         value = next(inferit)
     except astroid.InferenceError:
-        return  # inference failed
+        return None  # inference failed
     except StopIteration:
-        return  # no values infered
+        return None  # no values infered
     try:
         next(inferit)
-        return  # there is ambiguity on the inferred node
+        return None  # there is ambiguity on the inferred node
     except astroid.InferenceError:
-        return  # there is some kind of ambiguity
+        return None  # there is some kind of ambiguity
     except StopIteration:
         return value
+
+
+def _has_same_layout_slots(slots, assigned_value):
+    inferred = next(assigned_value.infer())
+    if isinstance(inferred, astroid.ClassDef):
+        other_slots = inferred.slots()
+        if all(first_slot and second_slot and first_slot.value == second_slot.value
+               for (first_slot, second_slot) in six.moves.zip_longest(slots, other_slots)):
+            return True
+    return False
 
 
 MSGS = {
@@ -624,7 +722,7 @@ a metaclass class method.'}
                 except astroid.NotFoundError:
                     for node in nodes:
                         if node.frame().name not in defining_methods:
-                            # If the attribute was set by a callfunc in any
+                            # If the attribute was set by a call in any
                             # of the defining methods, then don't emit
                             # the warning.
                             if _called_in_methods(node.frame(), cnode,
@@ -748,6 +846,26 @@ a metaclass class method.'}
         if super_call.type.name != current_scope.name:
             return
 
+        # Check values of default args
+        klass = function.parent.frame()
+        for overridden in klass.local_attr_ancestors(function.name):
+            # get astroid for the searched method
+            try:
+                meth_node = overridden[function.name]
+            except KeyError:
+                # we have found the method but it's not in the local
+                # dictionary.
+                # This may happen with astroid build from living objects
+                continue
+            if not isinstance(meth_node, astroid.FunctionDef):
+                # If the method have an ancestor which is not a function
+                # then it is legitimate to redefine it
+                return
+            if _has_different_parameters_default_value(meth_node.args, function.args):
+                return
+            else:
+                break
+
         # Detect if the parameters are the same as the call's arguments.
         params = _signature_from_arguments(function.args)
         args = _signature_from_call(call)
@@ -789,7 +907,7 @@ a metaclass class method.'}
 
     def _check_slots_elt(self, elt):
         for infered in elt.infer():
-            if infered is astroid.YES:
+            if infered is astroid.Uninferable:
                 continue
             if (not isinstance(infered, astroid.Const) or
                     not isinstance(infered.value, six.string_types)):
@@ -844,7 +962,7 @@ a metaclass class method.'}
         self._check_in_slots(node)
 
     def _check_in_slots(self, node):
-        """ Check that the given assattr node
+        """ Check that the given AssignAttr node
         is defined in the class slots.
         """
         infered = safe_infer(node.expr)
@@ -874,6 +992,9 @@ a metaclass class method.'}
                     if (node.attrname in klass.locals
                             and _has_data_descriptor(klass, node.attrname)):
                         # Descriptors circumvent the slots mechanism as well.
+                        return
+                    if (node.attrname == '__class__'
+                            and _has_same_layout_slots(slots, node.parent.value)):
                         return
                     self.add_message('assigning-non-slot',
                                      args=(node.attrname, ), node=node)
@@ -1159,7 +1280,7 @@ a metaclass class method.'}
                 return
             try:
                 for klass in expr.expr.infer():
-                    if klass is astroid.YES:
+                    if klass is astroid.Uninferable:
                         continue
                     # The infered klass can be super(), which was
                     # assigned to a variable and the `__init__`
@@ -1362,7 +1483,14 @@ class SpecialMethodsChecker(BaseChecker):
 
     def _check_len(self, node):
         inferred = _safe_infer_call_result(node, node)
-        if not inferred:
+        if not inferred or inferred is astroid.Uninferable:
+            return
+
+        if (isinstance(inferred, astroid.Instance)
+                and inferred.name == 'int'
+                and not isinstance(inferred, astroid.Const)):
+            # Assume it's good enough, since the int() call might wrap
+            # something that's uninferable for us
             return
 
         if not isinstance(inferred, astroid.Const):

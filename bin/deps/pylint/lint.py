@@ -1,20 +1,41 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2006-2015 LOGILAB S.A. (Paris, FRANCE) <contact@logilab.fr>
+# Copyright (c) 2008 Fabrice Douchant <Fabrice.Douchant@logilab.fr>
+# Copyright (c) 2009 Vincent
+# Copyright (c) 2009 Mads Kiilerich <mads@kiilerich.com>
 # Copyright (c) 2011-2014 Google, Inc.
+# Copyright (c) 2012 David Pursehouse <david.pursehouse@sonymobile.com>
+# Copyright (c) 2012 Kevin Jing Qiu <kevin.jing.qiu@gmail.com>
 # Copyright (c) 2012 FELD Boris <lothiraldan@gmail.com>
-# Copyright (c) 2014-2016 Claudiu Popa <pcmanticore@gmail.com>
+# Copyright (c) 2012 JT Olds <jtolds@xnet5.com>
+# Copyright (c) 2014-2017 Claudiu Popa <pcmanticore@gmail.com>
 # Copyright (c) 2014-2015 Michal Nowikowski <godfryd@gmail.com>
-# Copyright (c) 2015 Mihai Balint <balint.mihai@gmail.com>
-# Copyright (c) 2015 Simu Toni <simutoni@gmail.com>
-# Copyright (c) 2015 Aru Sahni <arusahni@gmail.com>
+# Copyright (c) 2014 Brett Cannon <brett@python.org>
+# Copyright (c) 2014 Alexandru Coman <fcoman@bitdefender.com>
+# Copyright (c) 2014 Daniel Harding <dharding@living180.net>
+# Copyright (c) 2014 Arun Persaud <arun@nubati.net>
+# Copyright (c) 2014 Dan Goldsmith <djgoldsmith@googlemail.com>
 # Copyright (c) 2015-2016 Florian Bruhin <me@the-compiler.org>
+# Copyright (c) 2015 Aru Sahni <arusahni@gmail.com>
+# Copyright (c) 2015 Steven Myint <hg@stevenmyint.com>
+# Copyright (c) 2015 Simu Toni <simutoni@gmail.com>
+# Copyright (c) 2015 Mihai Balint <balint.mihai@gmail.com>
+# Copyright (c) 2015 Ionel Cristian Maries <contact@ionelmc.ro>
+# Copyright (c) 2016-2017 Łukasz Rogalski <rogalski.91@gmail.com>
 # Copyright (c) 2016 Glenn Matthews <glenn@e-dad.net>
+# Copyright (c) 2016 Alan Evangelista <alanoe@linux.vnet.ibm.com>
+# Copyright (c) 2017 Daniel Miller <millerdev@gmail.com>
+# Copyright (c) 2017 hippo91 <guillaume.peillex@gmail.com>
+# Copyright (c) 2017 Roman Ivanov <me@roivanov.com>
+# Copyright (c) 2017 Ned Batchelder <ned@nedbatchelder.com>
+# Copyright (c) 2017 Ville Skyttä <ville.skytta@iki.fi>
 
 # Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 # For details: https://github.com/PyCQA/pylint/blob/master/COPYING
 
-""" %prog [options] module_or_package
+""" %prog [options] modules_or_packages
 
-  Check that a module satisfies a coding standard (and more !).
+  Check that module(s) satisfy a coding standard (and more !).
 
     %prog --help
 
@@ -84,6 +105,7 @@ def _get_python_path(filepath):
         dirname = os.path.dirname(dirname)
         if old_dirname == dirname:
             return os.getcwd()
+    return None
 
 
 def _merge_stats(stats):
@@ -205,8 +227,8 @@ if multiprocessing is not None:
 
             # Run linter for received files/modules.
             for file_or_module in iter(tasks_queue.get, 'STOP'):
-                result = self._run_linter(file_or_module[0])
                 try:
+                    result = self._run_linter(file_or_module[0])
                     results_queue.put(result)
                 except Exception as ex:
                     print("internal error with sending report for module %s" %
@@ -389,8 +411,12 @@ class PyLinter(config.OptionsManagerMixIn,
                   'help': ('A comma-separated list of package or module names'
                            ' from where C extensions may be loaded. Extensions are'
                            ' loading into the active Python interpreter and may run'
-                           ' arbitrary code')}
-                ),
+                           ' arbitrary code')}),
+                ('suggestion-mode',
+                 {'type': 'yn', 'metavar': '<yn>', 'default': True,
+                  'help': ('When enabled, pylint would attempt to guess common '
+                           'misconfiguration and emit user-friendly hints instead '
+                           'of false-positive error messages')}),
                )
 
     option_groups = (
@@ -473,12 +499,20 @@ class PyLinter(config.OptionsManagerMixIn,
         if name in self._reporters:
             self.set_reporter(self._reporters[name]())
         else:
-            qname = self._reporter_name
-            module = modutils.load_module_from_name(
-                modutils.get_module_part(qname))
-            class_name = qname.split('.')[-1]
-            reporter_class = getattr(module, class_name)
-            self.set_reporter(reporter_class())
+            try:
+                reporter_class = self._load_reporter_class()
+            except (ImportError, AttributeError):
+                raise exceptions.InvalidReporterError(name)
+            else:
+                self.set_reporter(reporter_class())
+
+    def _load_reporter_class(self):
+        qname = self._reporter_name
+        module = modutils.load_module_from_name(
+            modutils.get_module_part(qname))
+        class_name = qname.split('.')[-1]
+        reporter_class = getattr(module, class_name)
+        return reporter_class
 
     def set_reporter(self, reporter):
         """set the reporter used to display messages and reports"""
@@ -582,6 +616,10 @@ class PyLinter(config.OptionsManagerMixIn,
             for msg_id in self._checker_messages('python3'):
                 if msg_id.startswith('E'):
                     self.enable(msg_id)
+            config_parser = self.cfgfile_parser
+            if config_parser.has_option('MESSAGES CONTROL', 'disable'):
+                value = config_parser.get('MESSAGES CONTROL', 'disable')
+                self.global_set_option('disable', value)
         else:
             self.disable('python3')
         self.set_option('reports', False)
@@ -601,6 +639,10 @@ class PyLinter(config.OptionsManagerMixIn,
                     self.enable(msg_id)
                 else:
                     self.disable(msg_id)
+        config_parser = self.cfgfile_parser
+        if config_parser.has_option('MESSAGES CONTROL', 'disable'):
+            value = config_parser.get('MESSAGES CONTROL', 'disable')
+            self.global_set_option('disable', value)
         self._python3_porting_mode = True
 
     # block level option handling #############################################
@@ -753,14 +795,16 @@ class PyLinter(config.OptionsManagerMixIn,
         tasks_queue = manager.Queue()
         results_queue = manager.Queue()
 
-        for _ in range(self.config.jobs):
+        # Send files to child linters.
+        expanded_files = self.expand_files(files_or_modules)
+
+        # do not start more jobs than needed
+        for _ in range(min(self.config.jobs, len(expanded_files))):
             child_linter = ChildLinter(args=(tasks_queue, results_queue,
                                              child_config))
             child_linter.start()
             children.append(child_linter)
 
-        # Send files to child linters.
-        expanded_files = self.expand_files(files_or_modules)
         for files_or_module in expanded_files:
             path = files_or_module['path']
             tasks_queue.put([path])
@@ -795,6 +839,8 @@ class PyLinter(config.OptionsManagerMixIn,
         all_stats = []
         module = None
         for result in self._parallel_task(files_or_modules):
+            if not result:
+                continue
             (
                 _,
                 self.file_state.base_name,
@@ -912,7 +958,7 @@ class PyLinter(config.OptionsManagerMixIn,
             tokens = utils.tokenize_module(ast_node)
         except tokenize.TokenError as ex:
             self.add_message('syntax-error', line=ex.args[1][0], args=ex.args[0])
-            return
+            return None
 
         if not ast_node.pure_python:
             self.add_message('raw-checker-failed', args=ast_node.name)
@@ -1251,6 +1297,7 @@ group are mutually exclusive.'),
                                 level=1)
         # read configuration
         linter.disable('I')
+        linter.enable('c-extension-no-member')
         linter.read_config_file()
         config_parser = linter.cfgfile_parser
         # run init hook, if present, before loading plugins

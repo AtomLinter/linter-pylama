@@ -1,12 +1,25 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2006-2015 LOGILAB S.A. (Paris, FRANCE) <contact@logilab.fr>
 # Copyright (c) 2012-2014 Google, Inc.
-# Copyright (c) 2014-2016 Claudiu Popa <pcmanticore@gmail.com>
+# Copyright (c) 2013 buck@yelp.com <buck@yelp.com>
+# Copyright (c) 2014-2017 Claudiu Popa <pcmanticore@gmail.com>
+# Copyright (c) 2014 Brett Cannon <brett@python.org>
+# Copyright (c) 2014 Arun Persaud <arun@nubati.net>
+# Copyright (c) 2015-2016 Moises Lopez <moylop260@vauxoo.com>
 # Copyright (c) 2015 Dmitry Pribysh <dmand@yandex.ru>
-# Copyright (c) 2015 Noam Yorav-Raphael <noamraph@gmail.com>
 # Copyright (c) 2015 Cezar <celnazli@bitdefender.com>
+# Copyright (c) 2015 Florian Bruhin <me@the-compiler.org>
+# Copyright (c) 2015 Noam Yorav-Raphael <noamraph@gmail.com>
 # Copyright (c) 2015 James Morgensen <james.morgensen@gmail.com>
-# Copyright (c) 2016 Moises Lopez - https://www.vauxoo.com/ <moylop260@vauxoo.com>
+# Copyright (c) 2015 Ionel Cristian Maries <contact@ionelmc.ro>
+# Copyright (c) 2016 Jared Garst <cultofjared@gmail.com>
+# Copyright (c) 2016 Maik Röder <maikroeder@gmail.com>
+# Copyright (c) 2016 Glenn Matthews <glenn@e-dad.net>
 # Copyright (c) 2016 Ashley Whetter <ashley@awhetter.co.uk>
+# Copyright (c) 2017 hippo91 <guillaume.peillex@gmail.com>
+# Copyright (c) 2017 Michka Popoff <michkapopoff@gmail.com>
+# Copyright (c) 2017 Łukasz Rogalski <rogalski.91@gmail.com>
+# Copyright (c) 2017 Erik Wright <erik.wright@shopify.com>
 
 # Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 # For details: https://github.com/PyCQA/pylint/blob/master/COPYING
@@ -97,6 +110,7 @@ def _get_first_import(node, context, name, base, level, alias):
                     break
     if found and not are_exclusive(first, node):
         return first
+    return None
 
 
 def _ignore_import_failure(node, modname, ignored_modules):
@@ -372,8 +386,7 @@ class ImportsChecker(BaseChecker):
             for cycle in get_cycles(graph, vertices=vertices):
                 self.add_message('cyclic-import', args=' -> '.join(cycle))
 
-    @check_messages('wrong-import-position', 'multiple-imports',
-                    'relative-import', 'reimported', 'deprecated-module')
+    @check_messages(*MSGS.keys())
     def visit_import(self, node):
         """triggered when an import statement is seen"""
         self._check_reimport(node)
@@ -424,8 +437,7 @@ class ImportsChecker(BaseChecker):
             if name != '*':
                 self._add_imported_module(node, '%s.%s' % (imported_module.name, name))
 
-    @check_messages('wrong-import-order', 'ungrouped-imports',
-                    'wrong-import-position')
+    @check_messages(*(MSGS.keys()))
     def leave_module(self, node):
         # Check imports are grouped by category (standard, 3rd party, local)
         std_imports, ext_imports, loc_imports = self._check_imports_order(node)
@@ -434,6 +446,8 @@ class ImportsChecker(BaseChecker):
         met = set()
         current_package = None
         for import_node, import_name in std_imports + ext_imports + loc_imports:
+            if not self.linter.is_message_enabled('ungrouped-imports', import_node.fromlineno):
+                continue
             package, _, _ = import_name.partition('.')
             if current_package and current_package != package and package in met:
                 self.add_message('ungrouped-imports', node=import_node,
@@ -445,6 +459,8 @@ class ImportsChecker(BaseChecker):
         self._first_non_import_node = None
 
     def compute_first_non_import_node(self, node):
+        if not self.linter.is_message_enabled('wrong-import-position', node.fromlineno):
+            return
         # if the node does not contain an import instruction, and if it is the
         # first node of the module, keep a track of it (all the import positions
         # of the module will be compared to the position of this first
@@ -475,6 +491,8 @@ class ImportsChecker(BaseChecker):
         compute_first_non_import_node
 
     def visit_functiondef(self, node):
+        if not self.linter.is_message_enabled('wrong-import-position', node.fromlineno):
+            return
         # If it is the first non import instruction of the module, record it.
         if self._first_non_import_node:
             return
@@ -558,11 +576,15 @@ class ImportsChecker(BaseChecker):
 
         Imports must follow this order: standard, 3rd party, local
         """
-        extern_imports = []
-        local_imports = []
         std_imports = []
-        extern_not_nested = []
-        local_not_nested = []
+        third_party_imports = []
+        first_party_imports = []
+        # need of a list that holds third or first party ordered import
+        external_imports = []
+        local_imports = []
+        third_party_not_ignored = []
+        first_party_not_ignored = []
+        local_not_ignored = []
         isort_obj = isort.SortImports(
             file_contents='', known_third_party=self.config.known_third_party,
             known_standard_library=self.config.known_standard_library,
@@ -573,30 +595,45 @@ class ImportsChecker(BaseChecker):
             else:
                 package = modname.split('.')[0]
             nested = not isinstance(node.parent, astroid.Module)
+            ignore_for_import_order = not self.linter.is_message_enabled('wrong-import-order',
+                                                                         node.fromlineno)
             import_category = isort_obj.place_module(package)
+            node_and_package_import = (node, package)
             if import_category in ('FUTURE', 'STDLIB'):
-                std_imports.append((node, package))
-                wrong_import = extern_not_nested or local_not_nested
+                std_imports.append(node_and_package_import)
+                wrong_import = (third_party_not_ignored or first_party_not_ignored
+                                or local_not_ignored)
                 if self._is_fallback_import(node, wrong_import):
                     continue
                 if wrong_import and not nested:
                     self.add_message('wrong-import-order', node=node,
                                      args=('standard import "%s"' % node.as_string(),
                                            '"%s"' % wrong_import[0][0].as_string()))
-            elif import_category in ('FIRSTPARTY', 'THIRDPARTY'):
-                extern_imports.append((node, package))
-                if not nested:
-                    extern_not_nested.append((node, package))
-                wrong_import = local_not_nested
+            elif import_category == 'THIRDPARTY':
+                third_party_imports.append(node_and_package_import)
+                external_imports.append(node_and_package_import)
+                if not nested and not ignore_for_import_order:
+                    third_party_not_ignored.append(node_and_package_import)
+                wrong_import = first_party_not_ignored or local_not_ignored
                 if wrong_import and not nested:
                     self.add_message('wrong-import-order', node=node,
-                                     args=('external import "%s"' % node.as_string(),
+                                     args=('third party import "%s"' % node.as_string(),
+                                           '"%s"' % wrong_import[0][0].as_string()))
+            elif import_category == 'FIRSTPARTY':
+                first_party_imports.append(node_and_package_import)
+                external_imports.append(node_and_package_import)
+                if not nested and not ignore_for_import_order:
+                    first_party_not_ignored.append(node_and_package_import)
+                wrong_import = local_not_ignored
+                if wrong_import and not nested:
+                    self.add_message('wrong-import-order', node=node,
+                                     args=('first party import "%s"' % node.as_string(),
                                            '"%s"' % wrong_import[0][0].as_string()))
             elif import_category == 'LOCALFOLDER':
                 local_imports.append((node, package))
-                if not nested:
-                    local_not_nested.append((node, package))
-        return std_imports, extern_imports, local_imports
+                if not nested and not ignore_for_import_order:
+                    local_not_ignored.append((node, package))
+        return std_imports, external_imports, local_imports
 
     def _get_imported_module(self, importnode, modname):
         try:
@@ -623,7 +660,7 @@ class ImportsChecker(BaseChecker):
         the imported module name.
         """
         if not self.linter.is_message_enabled('relative-import'):
-            return
+            return None
         if importedmodnode.file is None:
             return False # built-in module
         if modnode is importedmodnode:
@@ -635,6 +672,8 @@ class ImportsChecker(BaseChecker):
             self.add_message('relative-import',
                              args=(importedasname, importedmodnode.name),
                              node=importnode)
+            return None
+        return None
 
     def _add_imported_module(self, node, importedmodname):
         """notify an imported module, used to analyze dependencies"""
@@ -668,7 +707,7 @@ class ImportsChecker(BaseChecker):
 
             # update import graph
             self.import_graph[context_name].add(importedmodname)
-            if not self.linter.is_message_enabled('cyclic-import'):
+            if not self.linter.is_message_enabled('cyclic-import', line=node.lineno):
                 self._excluded_edges[context_name].add(importedmodname)
 
     def _check_deprecated_module(self, node, mod_path):
