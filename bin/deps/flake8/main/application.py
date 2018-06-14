@@ -12,7 +12,7 @@ from flake8 import exceptions
 from flake8 import style_guide
 from flake8 import utils
 from flake8.main import options
-from flake8.options import aggregator
+from flake8.options import aggregator, config
 from flake8.options import manager
 from flake8.plugins import manager as plugin_manager
 
@@ -45,34 +45,16 @@ class Application(object):
             prog='flake8', version=flake8.__version__
         )
         options.register_default_options(self.option_manager)
+        #: The preliminary options parsed from CLI before plugins are loaded,
+        #: into a :class:`optparse.Values` instance
+        self.prelim_opts = None
+        #: The preliminary arguments parsed from CLI before plugins are loaded
+        self.prelim_args = None
+        #: The instance of :class:`flake8.options.config.ConfigFileFinder`
+        self.config_finder = None
 
-        # We haven't found or registered our plugins yet, so let's defer
-        # printing the version until we aggregate options from config files
-        # and the command-line. First, let's clone our arguments on the CLI,
-        # then we'll attempt to remove ``--version`` so that we can avoid
-        # triggering the "version" action in optparse. If it's not there, we
-        # do not need to worry and we can continue. If it is, we successfully
-        # defer printing the version until just a little bit later.
-        # Similarly we have to defer printing the help text until later.
-        args = sys.argv[:]
-        try:
-            args.remove('--version')
-        except ValueError:
-            pass
-        try:
-            args.remove('--help')
-        except ValueError:
-            pass
-        try:
-            args.remove('-h')
-        except ValueError:
-            pass
-
-        preliminary_opts, _ = self.option_manager.parse_known_args(args)
-        # Set the verbosity of the program
-        flake8.configure_logging(preliminary_opts.verbose,
-                                 preliminary_opts.output_file)
-
+        #: The :class:`flake8.options.config.LocalPlugins` found in config
+        self.local_plugins = None
         #: The instance of :class:`flake8.plugins.manager.Checkers`
         self.check_plugins = None
         #: The instance of :class:`flake8.plugins.manager.Listeners`
@@ -111,6 +93,48 @@ class Application(object):
         #: The parsed diff information
         self.parsed_diff = {}
 
+    def parse_preliminary_options_and_args(self, argv=None):
+        """Get preliminary options and args from CLI, pre-plugin-loading.
+
+        We need to know the values of a few standard options and args now, so
+        that we can find config files and configure logging.
+
+        Since plugins aren't loaded yet, there may be some as-yet-unknown
+        options; we ignore those for now, they'll be parsed later when we do
+        real option parsing.
+
+        Sets self.prelim_opts and self.prelim_args.
+
+        :param list argv:
+            Command-line arguments passed in directly.
+        """
+        # We haven't found or registered our plugins yet, so let's defer
+        # printing the version until we aggregate options from config files
+        # and the command-line. First, let's clone our arguments on the CLI,
+        # then we'll attempt to remove ``--version`` so that we can avoid
+        # triggering the "version" action in optparse. If it's not there, we
+        # do not need to worry and we can continue. If it is, we successfully
+        # defer printing the version until just a little bit later.
+        # Similarly we have to defer printing the help text until later.
+        args = (argv or sys.argv)[:]
+        try:
+            args.remove('--version')
+        except ValueError:
+            pass
+        try:
+            args.remove('--help')
+        except ValueError:
+            pass
+        try:
+            args.remove('-h')
+        except ValueError:
+            pass
+
+        opts, args = self.option_manager.parse_known_args(args)
+        # parse_known_args includes program name and unknown options as args
+        args = [a for a in args[1:] if not a.startswith('-')]
+        self.prelim_opts, self.prelim_args = opts, args
+
     def exit(self):
         # type: () -> NoneType
         """Handle finalization and exiting the program.
@@ -125,6 +149,17 @@ class Application(object):
             raise SystemExit((self.result_count > 0) or
                              self.catastrophic_failure)
 
+    def make_config_finder(self):
+        """Make our ConfigFileFinder based on preliminary opts and args."""
+        if self.config_finder is None:
+            extra_config_files = utils.normalize_paths(
+                self.prelim_opts.append_config)
+            self.config_finder = config.ConfigFileFinder(
+                self.option_manager.program_name,
+                self.prelim_args,
+                extra_config_files,
+            )
+
     def find_plugins(self):
         # type: () -> NoneType
         """Find and load the plugins for this application.
@@ -135,14 +170,23 @@ class Application(object):
         of finding plugins (via :mod:`pkg_resources`) we want this to be
         idempotent and so only update those attributes if they are ``None``.
         """
+        if self.local_plugins is None:
+            self.local_plugins = config.get_local_plugins(
+                self.config_finder,
+                self.prelim_opts.config,
+                self.prelim_opts.isolated,
+            )
+
         if self.check_plugins is None:
-            self.check_plugins = plugin_manager.Checkers()
+            self.check_plugins = plugin_manager.Checkers(
+                self.local_plugins.extension)
 
         if self.listening_plugins is None:
             self.listening_plugins = plugin_manager.Listeners()
 
         if self.formatting_plugins is None:
-            self.formatting_plugins = plugin_manager.ReportFormatters()
+            self.formatting_plugins = plugin_manager.ReportFormatters(
+                self.local_plugins.report)
 
         self.check_plugins.load_plugins()
         self.listening_plugins.load_plugins()
@@ -165,7 +209,7 @@ class Application(object):
         """
         if self.options is None and self.args is None:
             self.options, self.args = aggregator.aggregate_options(
-                self.option_manager, argv
+                self.option_manager, self.config_finder, argv
             )
 
         self.running_against_diff = self.options.diff
@@ -185,6 +229,28 @@ class Application(object):
                                                 self.options,
                                                 self.args)
 
+    def formatter_for(self, formatter_plugin_name):
+        """Retrieve the formatter class by plugin name."""
+        try:
+            default_formatter = self.formatting_plugins['default']
+        except KeyError:
+            raise exceptions.ExecutionError(
+                "The 'default' Flake8 formatting plugin is unavailable. "
+                "This usually indicates that your setuptools is too old. "
+                "Please upgrade setuptools. If that does not fix the issue"
+                " please file an issue."
+            )
+
+        formatter_plugin = self.formatting_plugins.get(formatter_plugin_name)
+        if formatter_plugin is None:
+            LOG.warning(
+                '"%s" is an unknown formatter. Falling back to default.',
+                formatter_plugin_name,
+            )
+            formatter_plugin = default_formatter
+
+        return formatter_plugin.execute
+
     def make_formatter(self, formatter_class=None):
         # type: () -> NoneType
         """Initialize a formatter based on the parsed options."""
@@ -196,9 +262,7 @@ class Application(object):
                 format_plugin = 'quiet-nothing'
 
             if formatter_class is None:
-                formatter_class = self.formatting_plugins.get(
-                    format_plugin, self.formatting_plugins['default']
-                ).execute
+                formatter_class = self.formatter_for(format_plugin)
 
             self.formatter = formatter_class(self.options)
 
@@ -241,7 +305,7 @@ class Application(object):
             List of filenames to process
         """
         if self.running_against_diff:
-            files = list(sorted(self.parsed_diff.keys()))
+            files = sorted(self.parsed_diff)
         self.file_checker_manager.start(files)
         self.file_checker_manager.run()
         LOG.info('Finished running')
@@ -294,6 +358,10 @@ class Application(object):
         """
         # NOTE(sigmavirus24): When updating this, make sure you also update
         # our legacy API calls to these same methods.
+        self.parse_preliminary_options_and_args(argv)
+        flake8.configure_logging(
+            self.prelim_opts.verbose, self.prelim_opts.output_file)
+        self.make_config_finder()
         self.find_plugins()
         self.register_plugin_options()
         self.parse_configuration_and_cli(argv)
@@ -331,6 +399,11 @@ class Application(object):
             LOG.critical('Caught keyboard interrupt from user')
             LOG.exception(exc)
             self.file_checker_manager._force_cleanup()
+            self.catastrophic_failure = True
+        except exceptions.ExecutionError as exc:
+            print('There was a critical error during execution of Flake8:')
+            print(exc.message)
+            LOG.exception(exc)
             self.catastrophic_failure = True
         except exceptions.EarlyQuit:
             self.catastrophic_failure = True
