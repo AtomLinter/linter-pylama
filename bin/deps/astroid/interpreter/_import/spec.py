@@ -121,12 +121,15 @@ class ExplicitNamespacePackageFinder(ImpFinder):
     """A finder for the explicit namespace packages, generated through pkg_resources."""
 
     def find_module(self, modname, module_parts, processed, submodule_path):
+        if processed:
+            modname = '.'.join(processed + [modname])
         if util.is_namespace(modname) and modname in sys.modules:
             submodule_path = sys.modules[modname].__path__
             return ModuleSpec(name=modname, location='',
                               origin='namespace',
                               module_type=ModuleType.PY_NAMESPACE,
                               submodule_search_locations=submodule_path)
+        return None
 
 
     def contribute_to_path(self, spec, processed):
@@ -175,7 +178,7 @@ _SPEC_FINDERS = (
     ImpFinder,
     ZipFinder,
 )
-if _HAS_MACHINERY and sys.version_info[:2] > (3, 3):
+if _HAS_MACHINERY and sys.version_info[:2] >= (3, 4):
     _SPEC_FINDERS += (PathSpecFinder, )
 _SPEC_FINDERS += (ExplicitNamespacePackageFinder, )
 

@@ -99,12 +99,12 @@ def safe_infer(node, context=None):
         inferit = node.infer(context=context)
         value = next(inferit)
     except exceptions.InferenceError:
-        return
+        return None
     try:
         next(inferit)
-        return # None if there is ambiguity on the inferred node
+        return None # None if there is ambiguity on the inferred node
     except exceptions.InferenceError:
-        return # there is some kind of ambiguity
+        return None# there is some kind of ambiguity
     except StopIteration:
         return value
 
@@ -171,3 +171,4 @@ def class_instance_as_index(node):
                     return result
     except exceptions.InferenceError:
         pass
+    return None

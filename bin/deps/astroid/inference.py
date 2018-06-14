@@ -104,7 +104,7 @@ def _infer_map(node, context):
         else:
             key = helpers.safe_infer(name, context=context)
             value = helpers.safe_infer(value, context=context)
-            if key is None or value is None:
+            if any(elem in (None, util.Uninferable) for elem in (key, value)):
                 raise exceptions.InferenceError(node=node,
                                                 context=context)
             values[key] = value
@@ -131,6 +131,7 @@ def _higher_function_scope(node):
         current = current.parent
     if current and current.parent:
         return current.parent
+    return None
 
 def infer_name(self, context=None):
     """infer a Name: use name lookup rules"""
@@ -495,6 +496,8 @@ def _invoke_binop_inference(instance, opnode, op, other, context, method_name):
     methods = dunder_lookup.lookup(instance, method_name)
     method = methods[0]
     inferred = next(method.infer(context=context))
+    if inferred is util.Uninferable:
+        raise exceptions.InferenceError
     return instance.infer_binary_op(opnode, op, other, context, inferred)
 
 
@@ -712,12 +715,7 @@ def _infer_augassign(self, context=None):
             yield util.Uninferable
             return
 
-        # TODO(cpopa): if we have A() * A(), trying to infer
-        # the rhs with the same context will result in an
-        # inference error, so we create another context for it.
-        # This is a bug which should be fixed in InferenceContext at some point.
         rhs_context = context.clone()
-        rhs_context.path = set()
         for rhs in self.value.infer(context=rhs_context):
             if rhs is util.Uninferable:
                 # Don't know how to process this.
@@ -725,12 +723,10 @@ def _infer_augassign(self, context=None):
                 return
 
             try:
-                results = _infer_binary_operation(lhs, rhs, self, context, _get_aug_flow)
+                for result in _infer_binary_operation(lhs, rhs, self, context, _get_aug_flow):
+                    yield result
             except exceptions._NonDeducibleTypeHierarchy:
                 yield util.Uninferable
-            else:
-                for result in results:
-                    yield result
 
 
 @decorators.path_wrapper

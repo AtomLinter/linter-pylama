@@ -20,47 +20,70 @@ from astroid import nodes
 from astroid.builder import AstroidBuilder, extract_node
 from astroid import util
 
-PY3K = sys.version_info > (3, 0)
-PY33 = sys.version_info >= (3, 3)
-PY34 = sys.version_info >= (3, 4)
 
-# general function
+def _infer_first(node, context):
+    if node is util.Uninferable:
+        raise UseInferenceDefault
+    try:
+        value = next(node.infer(context=context))
+        if value is util.Uninferable:
+            raise UseInferenceDefault()
+        else:
+            return value
+    except StopIteration:
+        raise InferenceError()
+
+
+def _find_func_form_arguments(node, context):
+
+    def _extract_namedtuple_arg_or_keyword(position, key_name=None):
+
+        if len(args) > position:
+            return _infer_first(args[position], context)
+        if key_name and key_name in found_keywords:
+            return _infer_first(found_keywords[key_name], context)
+
+    args = node.args
+    keywords = node.keywords
+    found_keywords = {
+        keyword.arg: keyword.value for keyword in keywords
+    } if keywords else {}
+
+    name = _extract_namedtuple_arg_or_keyword(
+        position=0,
+        key_name='typename'
+    )
+    names = _extract_namedtuple_arg_or_keyword(
+        position=1,
+        key_name='field_names'
+    )
+    if name and names:
+        return name.value, names
+
+    raise UseInferenceDefault()
+
 
 def infer_func_form(node, base_type, context=None, enum=False):
     """Specific inference function for namedtuple or Python 3 enum. """
-    def infer_first(node):
-        if node is util.Uninferable:
-            raise UseInferenceDefault
-        try:            
-            value = next(node.infer(context=context))
-            if value is util.Uninferable:
-                raise UseInferenceDefault()
-            else:
-                return value
-        except StopIteration:
-            raise InferenceError()
-
     # node is a Call node, class name as first argument and generated class
     # attributes as second argument
-    if len(node.args) != 2:
-        # something weird here, go back to class implementation
-        raise UseInferenceDefault()
+
     # namedtuple or enums list of attributes can be a list of strings or a
     # whitespace-separate string
     try:
-        name = infer_first(node.args[0]).value
-        names = infer_first(node.args[1])
+        name, names = _find_func_form_arguments(node, context)
         try:
             attributes = names.value.replace(',', ' ').split()
         except AttributeError:
             if not enum:
-                attributes = [infer_first(const).value for const in names.elts]
+                attributes = [_infer_first(const, context).value
+                              for const in names.elts]
             else:
                 # Enums supports either iterator of (name, value) pairs
                 # or mappings.
                 # TODO: support only list, tuples and mappings.
                 if hasattr(names, 'items') and isinstance(names.items, list):
-                    attributes = [infer_first(const[0]).value
+                    attributes = [_infer_first(const[0], context).value
                                   for const in names.items
                                   if isinstance(const[0], nodes.Const)]
                 elif hasattr(names, 'elts'):
@@ -69,11 +92,11 @@ def infer_func_form(node, base_type, context=None, enum=False):
                     # be mixed.
                     if all(isinstance(const, nodes.Tuple)
                            for const in names.elts):
-                        attributes = [infer_first(const.elts[0]).value
+                        attributes = [_infer_first(const.elts[0], context).value
                                       for const in names.elts
                                       if isinstance(const, nodes.Tuple)]
                     else:
-                        attributes = [infer_first(const).value
+                        attributes = [_infer_first(const, context).value
                                       for const in names.elts]
                 else:
                     raise AttributeError
@@ -125,6 +148,11 @@ def infer_named_tuple(node, context=None):
     if rename:
         attributes = _get_renamed_namedtuple_atributes(attributes)
 
+    replace_args = ', '.join(
+        '{arg}=None'.format(arg=arg)
+        for arg in attributes
+    )
+
     field_def = ("    {name} = property(lambda self: self[{index:d}], "
                  "doc='Alias for field number {index:d}')")
     field_defs = '\n'.join(field_def.format(name=name, index=index)
@@ -138,12 +166,15 @@ class %(name)s(tuple):
     @classmethod
     def _make(cls, iterable, new=tuple.__new__, len=len):
         return new(cls, iterable)
-    def _replace(self, **kwds):
+    def _replace(self, %(replace_args)s):
         return self
     def __getnewargs__(self):
         return tuple(self)
 %(field_defs)s
-    ''' % {'name': name, 'fields': attributes, 'field_defs': field_defs})
+    ''' % {'name': name,
+           'fields': attributes,
+           'field_defs': field_defs,
+           'replace_args': replace_args})
     class_node.locals['_asdict'] = fake.body[0].locals['_asdict']
     class_node.locals['_make'] = fake.body[0].locals['_make']
     class_node.locals['_replace'] = fake.body[0].locals['_replace']
@@ -159,7 +190,7 @@ def _get_renamed_namedtuple_atributes(field_names):
     seen = set()
     for i, name in enumerate(field_names):
         if (not all(c.isalnum() or c == '_' for c in name) or keyword.iskeyword(name)
-            or not name or name[0].isdigit() or name.startswith('_') or name in seen):
+                or not name or name[0].isdigit() or name.startswith('_') or name in seen):
             names[i] = '_%d' % i
         seen.add(name)
     return tuple(names)
@@ -175,6 +206,24 @@ def infer_enum(node, context=None):
                 name = ''
                 value = 0
             return EnumAttribute()
+        def __iter__(self):
+            class EnumAttribute(object):
+                name = ''
+                value = 0
+            return [EnumAttribute()]
+        def __next__(self):
+            return next(iter(self))
+        def __getitem__(self, attr):
+            class Value(object):
+                @property
+                def name(self):
+                    return ''
+                @property
+                def value(self):
+                    return attr
+
+            return Value()
+        __members__ = ['']
     ''')
     class_node = infer_func_form(node, enum_meta,
                                  context=context, enum=True)[0]
@@ -198,10 +247,13 @@ def infer_enum_class(node):
                 continue
 
             stmt = values[0].statement()
-            if isinstance(stmt.targets[0], nodes.Tuple):
-                targets = stmt.targets[0].itered()
-            else:
-                targets = stmt.targets
+            if isinstance(stmt, nodes.Assign):
+                if isinstance(stmt.targets[0], nodes.Tuple):
+                    targets = stmt.targets[0].itered()
+                else:
+                    targets = stmt.targets
+            elif isinstance(stmt, nodes.AnnAssign):
+                targets = [stmt.target]
 
             new_targets = []
             for target in targets:
