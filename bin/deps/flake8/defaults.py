@@ -25,7 +25,7 @@ IGNORE = (
 SELECT = ('E', 'F', 'W', 'C90')
 MAX_LINE_LENGTH = 79
 
-TRUTHY_VALUES = set(['true', '1', 't'])
+TRUTHY_VALUES = {'true', '1', 't'}
 
 # Other constants
 WHITESPACE = frozenset(' \t')
@@ -46,7 +46,7 @@ NOQA_INLINE_REGEXP = re.compile(
     # We do not care about the ``: `` that follows ``noqa``
     # We do not care about the casing of ``noqa``
     # We want a comma-separated list of errors
-    '# noqa(?:: (?P<codes>([A-Z][0-9]+,?)+))?',
+    '# noqa(?:: (?P<codes>([A-Z][0-9]+(?:[,\s]+)?)+))?',
     re.IGNORECASE
 )
 

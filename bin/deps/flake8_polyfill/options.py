@@ -25,14 +25,12 @@ def register(parser, *args, **kwargs):
         normalize_paths = kwargs.pop('normalize_paths', False)
         # In the unlikely event that the developer has specified their own
         # callback, let's pop that and deal with that as well.
-        preexisting_callback = kwargs.pop('callback', None)
+        base_callback = kwargs.pop('callback', store_callback)
         callback = generate_callback_from(comma_separated_list,
                                           normalize_paths,
-                                          preexisting_callback)
-
-        if callback:
-            kwargs['callback'] = callback
-            kwargs['action'] = 'callback'
+                                          base_callback)
+        kwargs['callback'] = callback
+        kwargs['action'] = 'callback'
 
         # We've updated our args and kwargs and can now rather confidently
         # call add_option.
@@ -76,56 +74,29 @@ def normalize_path(path, parent=os.curdir):
     return path.rstrip(separator)
 
 
-def generate_callback_from(comma_separated_list, normalize_paths,
-                           preexisting_callback):
-    """Generate a callback from parameters provided for the option.
-
-    This uses composition to handle mixtures of the flags provided as well as
-    callbacks specified by the user.
-    """
-    if comma_separated_list and normalize_paths:
-        callback_list = [comma_separated_callback,
-                         normalize_paths_callback]
-        if preexisting_callback:
-            callback_list.append(preexisting_callback)
-        callback = compose_callbacks(*callback_list)
-    elif comma_separated_list:
-        callback = comma_separated_callback
-        if preexisting_callback:
-            callback = compose_callbacks(callback, preexisting_callback)
-    elif normalize_paths:
-        callback = normalize_paths_callback
-        if preexisting_callback:
-            callback = compose_callbacks(callback, preexisting_callback)
-    elif preexisting_callback:
-        callback = preexisting_callback
-    else:
-        callback = None
-    return callback
-
-
-def compose_callbacks(*callback_functions):
-    """Compose the callbacks provided as arguments."""
-    def _callback(option, opt_str, value, parser, *args, **kwargs):
-        """Callback that encompasses the other callbacks."""
-        for callback in callback_functions:
-            callback(option, opt_str, value, parser, *args, **kwargs)
-
-    return _callback
-
-
-def comma_separated_callback(option, opt_str, value, parser):
-    """Parse the value into a comma-separated list."""
-    value = getattr(parser.values, option.dest, value)
-    comma_separated_list = parse_comma_separated_list(value)
-    setattr(parser.values, option.dest, comma_separated_list)
-
-
-def normalize_paths_callback(option, opt_str, value, parser):
+def parse_normalized_paths(value):
     """Normalize the path(s) value."""
-    value = getattr(parser.values, option.dest, value)
     if isinstance(value, list):
         normalized = [normalize_path(s) for s in value]
     else:
         normalized = normalize_path(value)
-    setattr(parser.values, option.dest, normalized)
+    return normalized
+
+
+def store_callback(option, opt_str, value, parser, *args, **kwargs):
+    """Implement optparse's "store" action as a callback."""
+    setattr(parser.values, option.dest, value)
+
+
+def generate_callback_from(comma_separated_list, normalize_paths,
+                           base_callback):
+    """Generate a callback from parameters provided for the option."""
+    def _callback(option, opt_str, value, parser, *args, **kwargs):
+        """Wrap `base_callback` by transforming `value` for option params."""
+        if comma_separated_list:
+            value = parse_comma_separated_list(value)
+        if normalize_paths:
+            value = parse_normalized_paths(value)
+        base_callback(option, opt_str, value, parser, *args, **kwargs)
+
+    return _callback

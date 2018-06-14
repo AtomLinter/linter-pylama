@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2016 Ashley Whetter <ashley@awhetter.co.uk>
-# Copyright (c) 2016 Moisés López <moylop260@vauxoo.com>
+# Copyright (c) 2016-2017 Claudiu Popa <pcmanticore@gmail.com>
+# Copyright (c) 2016-2017 Ashley Whetter <ashley@awhetter.co.uk>
+# Copyright (c) 2016 Yuri Bochkarev <baltazar.bz@gmail.com>
 # Copyright (c) 2016 Glenn Matthews <glenn@e-dad.net>
-# Copyright (c) 2016 Claudiu Popa <pcmanticore@gmail.com>
+# Copyright (c) 2016 Moises Lopez <moylop260@vauxoo.com>
+# Copyright (c) 2017 hippo91 <guillaume.peillex@gmail.com>
+# Copyright (c) 2017 Mitar <mitar.github@tnode.com>
 
 # Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 # For details: https://github.com/PyCQA/pylint/blob/master/COPYING
@@ -15,11 +18,7 @@ import re
 
 import astroid
 
-from pylint.checkers.utils import (
-    inherit_from_std_ex,
-    node_ignores_exception,
-    safe_infer,
-)
+from pylint.checkers import utils
 
 
 def space_indentation(s):
@@ -31,6 +30,49 @@ def space_indentation(s):
     :return: number of leading spaces
     """
     return len(s) - len(s.lstrip(' '))
+
+
+def get_setters_property_name(node):
+    """Get the name of the property that the given node is a setter for.
+
+    :param node: The node to get the property name for.
+    :type node: str
+
+    :rtype: str or None
+    :returns: The name of the property that the node is a setter for,
+        or None if one could not be found.
+    """
+    decorators = node.decorators.nodes if node.decorators else []
+    for decorator in decorators:
+        if (isinstance(decorator, astroid.Attribute) and
+                decorator.attrname == "setter" and
+                isinstance(decorator.expr, astroid.Name)):
+            return decorator.expr.name
+    return None
+
+
+def get_setters_property(node):
+    """Get the property node for the given setter node.
+
+    :param node: The node to get the property for.
+    :type node: astroid.FunctionDef
+
+    :rtype: astroid.FunctionDef or None
+    :returns: The node relating to the property of the given setter node,
+        or None if one could not be found.
+    """
+    property_ = None
+
+    property_name = get_setters_property_name(node)
+    class_node = utils.node_frame_class(node)
+    if property_name and class_node:
+        class_attrs = class_node.getattr(node.name)
+        for attr in class_attrs:
+            if utils.decorated_with_property(attr):
+                property_ = attr
+                break
+
+    return property_
 
 
 def returns_something(return_node):
@@ -64,16 +106,16 @@ def possible_exc_types(node):
     :type node: astroid.node_classes.NodeNG
 
     :returns: A list of exception types possibly raised by :param:`node`.
-    :rtype: list(str)
+    :rtype: set(str)
     """
     excs = []
     if isinstance(node.exc, astroid.Name):
-        inferred = safe_infer(node.exc)
+        inferred = utils.safe_infer(node.exc)
         if inferred:
             excs = [inferred.name]
     elif (isinstance(node.exc, astroid.Call) and
           isinstance(node.exc.func, astroid.Name)):
-        target = safe_infer(node.exc.func)
+        target = utils.safe_infer(node.exc.func)
         if isinstance(target, astroid.ClassDef):
             excs = [target.name]
         elif isinstance(target, astroid.FunctionDef):
@@ -82,9 +124,9 @@ def possible_exc_types(node):
                     # return from inner function - ignore it
                     continue
 
-                val = safe_infer(ret.value)
+                val = utils.safe_infer(ret.value)
                 if (val and isinstance(val, (astroid.Instance, astroid.ClassDef))
-                        and inherit_from_std_ex(val)):
+                        and utils.inherit_from_std_ex(val)):
                     excs.append(val.name)
     elif node.exc is None:
         handler = node.parent
@@ -98,9 +140,9 @@ def possible_exc_types(node):
 
 
     try:
-        return set(exc for exc in excs if not node_ignores_exception(node, exc))
+        return set(exc for exc in excs if not utils.node_ignores_exception(node, exc))
     except astroid.InferenceError:
-        return ()
+        return set()
 
 
 def docstringify(docstring):
@@ -145,6 +187,12 @@ class Docstring(object):
     def has_rtype(self):
         return False
 
+    def has_property_returns(self):
+        return False
+
+    def has_property_type(self):
+        return False
+
     def has_yields(self):
         return False
 
@@ -161,6 +209,11 @@ class Docstring(object):
 class SphinxDocstring(Docstring):
     re_type = r"[\w\.]+"
 
+    re_simple_container_type = r"""
+        {type}                        # a container type
+        [\(\[] [^\n\s]+ [\)\]]        # with the contents of the container
+    """.format(type=re_type)
+
     re_xref = r"""
         (?::\w+:)?                    # optional tag
         `{0}`                         # what to reference
@@ -176,14 +229,14 @@ class SphinxDocstring(Docstring):
         \s+                     # whitespace
 
         (?:                     # optional type declaration
-        ({type})
+        ({type}|{container_type})
         \s+
         )?
 
         (\w+)                   # Parameter name
         \s*                     # whitespace
         :                       # final colon
-        """.format(type=re_type)
+        """.format(type=re_type, container_type=re_simple_container_type)
     re_param_in_docstring = re.compile(re_param_raw, re.X | re.S)
 
     re_type_raw = r"""
@@ -194,6 +247,15 @@ class SphinxDocstring(Docstring):
         :                       # final colon
         """.format(type=re_type)
     re_type_in_docstring = re.compile(re_type_raw, re.X | re.S)
+
+    re_property_type_raw = r"""
+        :type:                  # Sphinx keyword
+        \s+                     # whitespace
+        {type}                  # type declaration
+        """.format(type=re_type)
+    re_property_type_in_docstring = re.compile(
+        re_property_type_raw, re.X | re.S
+    )
 
     re_raise_raw = r"""
         :                       # initial colon
@@ -224,7 +286,8 @@ class SphinxDocstring(Docstring):
         return bool(self.re_param_in_docstring.search(self.doc) or
                     self.re_raise_in_docstring.search(self.doc) or
                     self.re_rtype_in_docstring.search(self.doc) or
-                    self.re_returns_in_docstring.search(self.doc))
+                    self.re_returns_in_docstring.search(self.doc) or
+                    self.re_property_type_in_docstring.search(self.doc))
 
     def exceptions(self):
         types = set()
@@ -252,6 +315,20 @@ class SphinxDocstring(Docstring):
             return False
 
         return bool(self.re_rtype_in_docstring.search(self.doc))
+
+    def has_property_returns(self):
+        if not self.doc:
+            return False
+
+        # The summary line is the return doc,
+        # so the first line must not be a known directive.
+        return not self.doc.lstrip().startswith(':')
+
+    def has_property_type(self):
+        if not self.doc:
+            return False
+
+        return bool(self.re_property_type_in_docstring.search(self.doc))
 
     def match_param_docs(self):
         params_with_doc = set()
@@ -286,6 +363,10 @@ class EpytextDocstring(SphinxDocstring):
         SphinxDocstring.re_type_raw.replace(':', '@', 1),
         re.X | re.S)
 
+    re_property_type_in_docstring = re.compile(
+        SphinxDocstring.re_property_type_raw.replace(':', '@', 1),
+        re.X | re.S)
+
     re_raise_in_docstring = re.compile(
         SphinxDocstring.re_raise_raw.replace(':', '@', 1),
         re.X | re.S)
@@ -300,6 +381,18 @@ class EpytextDocstring(SphinxDocstring):
 
     re_returns_in_docstring = re.compile(r"@returns?:")
 
+    def has_property_returns(self):
+        if not self.doc:
+            return False
+
+        # If this is a property docstring, the summary is the return doc.
+        if self.has_property_type():
+            # The summary line is the return doc,
+            # so the first line must not be a known directive.
+            return not self.doc.lstrip().startswith('@')
+
+        return False
+
 
 class GoogleDocstring(Docstring):
     re_type = SphinxDocstring.re_type
@@ -312,9 +405,9 @@ class GoogleDocstring(Docstring):
     """.format(type=re_type, xref=re_xref)
 
     re_multiple_type = r"""
-        (?:{container_type}|{type})
-        (?:\s+or\s+(?:{container_type}|{type}))*
-    """.format(type=re_type, container_type=re_container_type)
+        (?:{container_type}|{type}|{xref})
+        (?:\s+or\s+(?:{container_type}|{type}|{xref}))*
+    """.format(type=re_type, xref=re_xref, container_type=re_container_type)
 
     _re_section_template = r"""
         ^([ ]*)   {0} \s*:   \s*$     # Google parameter header
@@ -323,6 +416,11 @@ class GoogleDocstring(Docstring):
 
     re_param_section = re.compile(
         _re_section_template.format(r"(?:Args|Arguments|Parameters)"),
+        re.X | re.S | re.M
+    )
+
+    re_keyword_param_section = re.compile(
+        _re_section_template.format(r"Keyword\s(?:Args|Arguments|Parameters)"),
         re.X | re.S | re.M
     )
 
@@ -358,6 +456,13 @@ class GoogleDocstring(Docstring):
         type=re_multiple_type,
     ), re.X | re.S | re.M)
 
+    re_property_returns_line = re.compile(r"""
+        ^{type}:                       # indentifier
+        \s* (.*)                       # Summary line / description
+    """.format(
+        type=re_multiple_type,
+    ), re.X | re.S | re.M)
+
     re_yields_section = re.compile(
         _re_section_template.format(r"Yields?"),
         re.X | re.S | re.M
@@ -371,7 +476,8 @@ class GoogleDocstring(Docstring):
         return bool(self.re_param_section.search(self.doc) or
                     self.re_raise_section.search(self.doc) or
                     self.re_returns_section.search(self.doc) or
-                    self.re_yields_section.search(self.doc))
+                    self.re_yields_section.search(self.doc) or
+                    self.re_property_returns_line.search(self._first_line()))
 
     def has_params(self):
         if not self.doc:
@@ -410,6 +516,21 @@ class GoogleDocstring(Docstring):
                 return True
 
         return False
+
+    def has_property_returns(self):
+        # The summary line is the return doc,
+        # so the first line must not be a known directive.
+        first_line = self._first_line()
+        return not bool(self.re_param_section.search(first_line) or
+                        self.re_raise_section.search(first_line) or
+                        self.re_returns_section.search(first_line) or
+                        self.re_yields_section.search(first_line))
+
+    def has_property_type(self):
+        if not self.doc:
+            return False
+
+        return bool(self.re_property_returns_line.match(self._first_line()))
 
     def has_yields(self):
         if not self.doc:
@@ -464,6 +585,7 @@ class GoogleDocstring(Docstring):
         params_with_type = set()
 
         entries = self._parse_section(self.re_param_section)
+        entries.extend(self._parse_section(self.re_keyword_param_section))
         for entry in entries:
             match = self.re_param_line.match(entry)
             if not match:
@@ -479,6 +601,9 @@ class GoogleDocstring(Docstring):
                 params_with_doc.add(param_name)
 
         return params_with_doc, params_with_type
+
+    def _first_line(self):
+        return self.doc.lstrip().split('\n', 1)[0]
 
     @staticmethod
     def min_section_indent(section_match):

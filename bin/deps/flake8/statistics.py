@@ -17,15 +17,16 @@ class Statistics(object):
         :rtype:
             list(str)
         """
-        return list(sorted(set(key.code for key in self._store.keys())))
+        return sorted({key.code for key in self._store})
 
     def record(self, error):
         """Add the fact that the error was seen in the file.
 
         :param error:
-            The Error instance containing the information about the violation.
+            The Violation instance containing the information about the
+            violation.
         :type error:
-            flake8.style_guide.Error
+            flake8.style_guide.Violation
         """
         key = Key.create_from(error)
         if key not in self._store:
@@ -55,7 +56,7 @@ class Statistics(object):
         :returns:
             Generator of instances of :class:`Statistic`
         """
-        matching_errors = sorted(key for key in self._store.keys()
+        matching_errors = sorted(key for key in self._store
                                  if key.matches(prefix, filename))
         for error_code in matching_errors:
             yield self._store[error_code]
@@ -73,7 +74,7 @@ class Key(collections.namedtuple('Key', ['filename', 'code'])):
 
     @classmethod
     def create_from(cls, error):
-        """Create a Key from :class:`flake8.style_guide.Error`."""
+        """Create a Key from :class:`flake8.style_guide.Violation`."""
         return cls(
             filename=error.filename,
             code=error.code,
@@ -115,7 +116,7 @@ class Statistic(object):
 
     @classmethod
     def create_from(cls, error):
-        """Create a Statistic from a :class:`flake8.style_guide.Error`."""
+        """Create a Statistic from a :class:`flake8.style_guide.Violation`."""
         return cls(
             error_code=error.code,
             filename=error.filename,

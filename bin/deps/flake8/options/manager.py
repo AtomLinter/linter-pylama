@@ -1,4 +1,5 @@
 """Option handling and Option management logic."""
+import collections
 import logging
 import optparse  # pylint: disable=deprecated-module
 
@@ -103,8 +104,7 @@ class Option(object):
 
         self._opt = None
 
-    def __repr__(self):
-        """Simple representation of an Option class."""
+    def __repr__(self):  # noqa: D105
         return (
             'Option({0}, {1}, action={action}, default={default}, '
             'dest={dest}, type={type}, callback={callback}, help={help},'
@@ -154,6 +154,10 @@ class Option(object):
         return self._opt
 
 
+PluginVersion = collections.namedtuple("PluginVersion",
+                                       ["name", "version", "local"])
+
+
 class OptionManager(object):
     """Manage Options and OptionParser while adding post-processing."""
 
@@ -179,9 +183,9 @@ class OptionManager(object):
         self.extended_default_select = set()
 
     @staticmethod
-    def format_plugin(plugin_tuple):
-        """Convert a plugin tuple into a dictionary mapping name to value."""
-        return dict(zip(["name", "version"], plugin_tuple))
+    def format_plugin(plugin):
+        """Convert a PluginVersion into a dictionary mapping name to value."""
+        return {attr: getattr(plugin, attr) for attr in ["name", "version"]}
 
     def add_option(self, *args, **kwargs):
         """Create and register a new option.
@@ -268,7 +272,7 @@ class OptionManager(object):
             setattr(options, option.dest, option.normalize(old_value))
 
     def parse_args(self, args=None, values=None):
-        """Simple proxy to calling the OptionParser's parse_args method."""
+        """Proxy to calling the OptionParser's parse_args method."""
         self.generate_epilog()
         self.update_version_string()
         options, xargs = self.parser.parse_args(args, values)
@@ -307,7 +311,7 @@ class OptionManager(object):
         self._normalize(options)
         return options, xargs
 
-    def register_plugin(self, name, version):
+    def register_plugin(self, name, version, local=False):
         """Register a plugin relying on the OptionManager.
 
         :param str name:
@@ -315,5 +319,7 @@ class OptionManager(object):
             attribute of the class or function loaded from the entry-point.
         :param str version:
             The version of the checker that we're using.
+        :param bool local:
+            Whether the plugin is local to the project/repository or not.
         """
-        self.registered_plugins.add((name, version))
+        self.registered_plugins.add(PluginVersion(name, version, local))

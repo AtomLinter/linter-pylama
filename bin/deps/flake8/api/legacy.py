@@ -6,6 +6,7 @@ In 3.0 we no longer have an "engine" module but we maintain the API from it.
 import logging
 import os.path
 
+import flake8
 from flake8.formatting import base as formatter
 from flake8.main import application as app
 
@@ -26,6 +27,10 @@ def get_style_guide(**kwargs):
         :class:`StyleGuide`
     """
     application = app.Application()
+    application.parse_preliminary_options_and_args([])
+    flake8.configure_logging(
+        application.prelim_opts.verbose, application.prelim_opts.output_file)
+    application.make_config_finder()
     application.find_plugins()
     application.register_plugin_options()
     application.parse_configuration_and_cli([])
@@ -68,7 +73,7 @@ class StyleGuide(object):
 
     @property
     def options(self):
-        """The parsed options.
+        """Return application's options.
 
         An instance of :class:`optparse.Values` containing parsed options.
         """
@@ -76,7 +81,7 @@ class StyleGuide(object):
 
     @property
     def paths(self):
-        """The extra arguments passed as paths."""
+        """Return the extra arguments passed as paths."""
         return self._application.paths
 
     def check_files(self, paths=None):
@@ -127,6 +132,8 @@ class StyleGuide(object):
         # Application#make_guide but it works pretty well.
         # Stop cringing... I know it's gross.
         self._application.make_guide()
+        self._application.file_checker_manager = None
+        self._application.make_file_checker_manager()
 
     def input_file(self, filename, lines=None, expected=None, line_offset=0):
         """Run collected checks on a single file.
@@ -176,7 +183,7 @@ class Report(object):
 
     @property
     def total_errors(self):
-        """The total number of errors found by Flake8."""
+        """Return the total number of errors."""
         return self._application.result_count
 
     def get_statistics(self, violation):

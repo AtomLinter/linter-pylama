@@ -16,7 +16,7 @@ distname = 'astroid'
 
 modname = 'astroid'
 
-version = '1.5.2'
+version = '1.6.5'
 numversion = tuple(map(int, version.split('.')))
 
 extras_require = {}
@@ -34,13 +34,14 @@ def has_environment_marker_range_operators_support():
 
 
 if has_environment_marker_range_operators_support():
-    extras_require[':python_version<"3.4"'] = ['enum34', 'singledispatch']
-    extras_require[':python_version<"3.3"'] = ['backports.functools_lru_cache']
+    extras_require[':python_version<"3.4"'] = ['enum34>=1.1.3',
+                                               'singledispatch',
+                                               'backports.functools_lru_cache']
 else:
     if py_version < (3, 4):
-        install_requires.extend(['enum34', 'singledispatch'])
-    if py_version < (3, 3):
-        install_requires.append('backports.functools_lru_cache')
+        install_requires.extend(['enum34',
+                                 'singledispatch',
+                                 'backports.functools_lru_cache'])
 
 
 # pylint: disable=redefined-builtin; why license is a builtin anyway?
@@ -57,5 +58,11 @@ classifiers = ["Topic :: Software Development :: Libraries :: Python Modules",
                "Topic :: Software Development :: Quality Assurance",
                "Programming Language :: Python",
                "Programming Language :: Python :: 2",
+               "Programming Language :: Python :: 2.7",
                "Programming Language :: Python :: 3",
+               "Programming Language :: Python :: 3.4",
+               "Programming Language :: Python :: 3.5",
+               "Programming Language :: Python :: 3.6",
+               "Programming Language :: Python :: Implementation :: CPython",
+               "Programming Language :: Python :: Implementation :: PyPy",
               ]

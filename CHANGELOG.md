@@ -1,3 +1,6 @@
+# 0.10.0
+* Update pylama, pylint, isort, radon, flake8, pyflakes, pycodestyle and pydocstyle
+
 # 0.9.5
 * Bump timeout to 60s if using an external pylama or pylint (@Rotonen)
 

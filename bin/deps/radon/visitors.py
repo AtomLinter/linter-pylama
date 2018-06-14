@@ -24,13 +24,11 @@ BaseClass = collections.namedtuple('Class', ['name', 'lineno', 'col_offset',
 
 
 def code2ast(source):
-    '''Convert a string object into an AST object. This function attempts to
-    convert the string into bytes.
+    '''Convert a string object into an AST object.
+
+    This function is retained for backwards compatibility, but it no longer
+    attemps any conversions. It's equivalent to a call to ``ast.parse``.
     '''
-    try:
-        source = source.encode('utf-8')  # necessary in Python 3
-    except UnicodeDecodeError:  # pragma: no cover
-        pass
     return ast.parse(source)
 
 
@@ -227,6 +225,9 @@ class ComplexityVisitor(CodeVisitor):
         self.complexity += not self.no_assert
 
     def visit_AsyncFunctionDef(self, node):
+        '''Async function definition is the same thing as the synchronous
+        one.
+        '''
         self.visit_FunctionDef(node)
 
     def visit_FunctionDef(self, node):

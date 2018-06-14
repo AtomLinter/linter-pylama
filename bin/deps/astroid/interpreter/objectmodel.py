@@ -138,11 +138,17 @@ class ModuleModel(ObjectModel):
             raise exceptions.AttributeInferenceError(target=self._instance,
                                                      attribute='__path__')
 
-        path = os.path.dirname(self._instance.file)
-        path_obj = node_classes.Const(value=path, parent=self._instance)
+        if isinstance(self._instance.path, list):
+            path_objs = [
+                node_classes.Const(value=path, parent=self._instance)
+                for path in self._instance.path
+            ]
+        else:
+            path = os.path.dirname(self._instance.path)
+            path_objs = [node_classes.Const(value=path, parent=self._instance)]
 
         container = node_classes.List(parent=self._instance)
-        container.postinit([path_obj])
+        container.postinit(path_objs)
 
         return container
 
@@ -234,7 +240,7 @@ class FunctionModel(ObjectModel):
 
         args = self._instance.args
         pair_annotations = itertools.chain(
-            six.moves.zip(args.args, args.annotations),
+            six.moves.zip(args.args or [], args.annotations),
             six.moves.zip(args.kwonlyargs, args.kwonlyargs_annotations)
         )
 
@@ -510,7 +516,6 @@ class GeneratorModel(FunctionModel):
         ret = super(GeneratorModel, cls).__new__(cls, *args, **kwargs)
         generator = astroid.MANAGER.astroid_cache[six.moves.builtins.__name__]['generator']
         for name, values in generator.locals.items():
-            print(name, values)
             method = values[0]
             patched = lambda cls, meth=method: meth
 

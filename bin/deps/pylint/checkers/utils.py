@@ -1,9 +1,25 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2006-2007, 2009-2014 LOGILAB S.A. (Paris, FRANCE) <contact@logilab.fr>
+# Copyright (c) 2009 Mads Kiilerich <mads@kiilerich.com>
+# Copyright (c) 2010 Daniel Harding <dharding@gmail.com>
 # Copyright (c) 2012-2014 Google, Inc.
-# Copyright (c) 2013-2016 Claudiu Popa <pcmanticore@gmail.com>
-# Copyright (c) 2015 Radu Ciorba <radu@devrandom.ro>
+# Copyright (c) 2012 FELD Boris <lothiraldan@gmail.com>
+# Copyright (c) 2013-2017 Claudiu Popa <pcmanticore@gmail.com>
+# Copyright (c) 2014 Brett Cannon <brett@python.org>
+# Copyright (c) 2014 Ricardo Gemignani <ricardo.gemignani@gmail.com>
+# Copyright (c) 2014 Arun Persaud <arun@nubati.net>
 # Copyright (c) 2015 Dmitry Pribysh <dmand@yandex.ru>
-# Copyright (c) 2016 Ashley Whetter <ashley@awhetter.co.uk>
+# Copyright (c) 2015 Florian Bruhin <me@the-compiler.org>
+# Copyright (c) 2015 Radu Ciorba <radu@devrandom.ro>
+# Copyright (c) 2015 Ionel Cristian Maries <contact@ionelmc.ro>
+# Copyright (c) 2016, 2018 Ashley Whetter <ashley@awhetter.co.uk>
+# Copyright (c) 2016-2017 Łukasz Rogalski <rogalski.91@gmail.com>
+# Copyright (c) 2016-2017 Moises Lopez <moylop260@vauxoo.com>
+# Copyright (c) 2016 Brian C. Lane <bcl@redhat.com>
+# Copyright (c) 2017-2018 hippo91 <guillaume.peillex@gmail.com>
+# Copyright (c) 2017 ttenhoeve-aa <ttenhoeve@appannie.com>
+# Copyright (c) 2018 Bryce Guinta <bryce.paul.guinta@gmail.com>
+# Copyright (c) 2018 Brian Shaginaw <brian.shaginaw@warbyparker.com>
 
 # Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 # For details: https://github.com/PyCQA/pylint/blob/master/COPYING
@@ -91,7 +107,7 @@ _SPECIAL_METHODS_PARAMS = {
         '__setstate__', '__reduce_ex__', '__deepcopy__', '__cmp__',
         '__matmul__', '__rmatmul__', '__div__'),
 
-    2: ('__setattr__', '__get__', '__set__', '__setitem__'),
+    2: ('__setattr__', '__get__', '__set__', '__setitem__', '__set_name__'),
 
     3: ('__exit__', '__aexit__'),
 
@@ -284,7 +300,7 @@ def is_ancestor_name(frame, node):
     return False
 
 def assign_parent(node):
-    """return the higher parent which is not an AssName, Tuple or List node
+    """return the higher parent which is not an AssignName, Tuple or List node
     """
     while node and isinstance(node, (astroid.AssignName,
                                      astroid.Tuple,
@@ -418,10 +434,10 @@ def is_attr_private(attrname):
     regex = re.compile('^_{2,}.*[^_]+_?$')
     return regex.match(attrname)
 
-def get_argument_from_call(callfunc_node, position=None, keyword=None):
+def get_argument_from_call(call_node, position=None, keyword=None):
     """Returns the specified argument from a function call.
 
-    :param astroid.Call callfunc_node: Node representing a function call to check.
+    :param astroid.Call call_node: Node representing a function call to check.
     :param int position: position of the argument.
     :param str keyword: the keyword of the argument.
 
@@ -435,11 +451,11 @@ def get_argument_from_call(callfunc_node, position=None, keyword=None):
         raise ValueError('Must specify at least one of: position or keyword.')
     if position is not None:
         try:
-            return callfunc_node.args[position]
+            return call_node.args[position]
         except IndexError:
             pass
-    if keyword and callfunc_node.keywords:
-        for arg in callfunc_node.keywords:
+    if keyword and call_node.keywords:
+        for arg in call_node.keywords:
             if arg.arg == keyword:
                 return arg.value
 
@@ -453,6 +469,8 @@ def inherit_from_std_ex(node):
     if node.name in ('Exception', 'BaseException') \
             and node.root().name == EXCEPTIONS_MODULE:
         return True
+    if not hasattr(node, 'ancestors'):
+        return False
     return any(inherit_from_std_ex(parent)
                for parent in node.ancestors(recurs=True))
 
@@ -505,6 +523,7 @@ def _is_property_decorator(decorator):
             for ancestor in infered.ancestors():
                 if ancestor.name == 'property' and ancestor.root().name == BUILTINS_NAME:
                     return True
+    return None
 
 
 def decorated_with(func, qnames):
@@ -579,6 +598,7 @@ def unimplemented_abstract_methods(node, is_abstract_cb=None):
 
 
 def _import_node_context(node):
+    """Return the ExceptHandler or the TryExcept node in which the node is."""
     current = node
     ignores = (astroid.ExceptHandler, astroid.TryExcept)
     while current and not isinstance(current.parent, ignores):
@@ -610,21 +630,48 @@ def is_from_fallback_block(node):
 
 
 def _except_handlers_ignores_exception(handlers, exception):
-    func = functools.partial(error_of_type,
-                             error_type=(exception, ))
+    func = functools.partial(error_of_type, error_type=(exception, ))
     return any(map(func, handlers))
+
+
+def get_exception_handlers(node, exception):
+    """Return the collections of handlers handling the exception in arguments.
+
+    Args:
+        node (astroid.Raise): the node raising the exception.
+        exception (builtin.Exception or str): exception or name of the exception.
+
+    Returns:
+        generator: the collection of handlers that are handling the exception or None.
+
+    """
+    context = _import_node_context(node)
+    if isinstance(context, astroid.TryExcept):
+        return (_handler for _handler in context.handlers
+                if error_of_type(_handler, exception))
+    return None
+
+
+def is_node_inside_try_except(node):
+    """Check if the node is directly under a Try/Except statement.
+    (but not under an ExceptHandler!)
+
+    Args:
+        node (astroid.Raise): the node raising the exception.
+
+    Returns:
+        bool: True if the node is inside a try/except statement, False otherwise.
+    """
+    context = _import_node_context(node)
+    return isinstance(context, astroid.TryExcept)
 
 
 def node_ignores_exception(node, exception):
     """Check if the node is in a TryExcept which handles the given exception."""
-    current = node
-    ignores = (astroid.ExceptHandler, astroid.TryExcept)
-    while current and not isinstance(current.parent, ignores):
-        current = current.parent
-
-    if current and isinstance(current.parent, astroid.TryExcept):
-        return _except_handlers_ignores_exception(current.parent.handlers, exception)
-    return False
+    managing_handlers = get_exception_handlers(node, exception)
+    if not managing_handlers:
+        return False
+    return any(managing_handlers)
 
 
 def class_is_abstract(node):
@@ -721,6 +768,8 @@ def _supports_protocol(value, protocol_callback):
     if isinstance(value, astroid.BaseInstance):
         if not has_known_bases(value):
             return True
+        if value.has_dynamic_getattr():
+            return True
         if protocol_callback(value):
             return True
 
@@ -772,12 +821,12 @@ def safe_infer(node, context=None):
         inferit = node.infer(context=context)
         value = next(inferit)
     except astroid.InferenceError:
-        return
+        return None
     try:
         next(inferit)
-        return # None if there is ambiguity on the inferred node
+        return None # None if there is ambiguity on the inferred node
     except astroid.InferenceError:
-        return # there is some kind of ambiguity
+        return None # there is some kind of ambiguity
     except StopIteration:
         return value
 
@@ -818,13 +867,13 @@ def node_type(node):
     types = set()
     try:
         for var_type in node.infer():
-            if var_type == astroid.YES or is_none(var_type):
+            if var_type == astroid.Uninferable or is_none(var_type):
                 continue
             types.add(var_type)
             if len(types) > 1:
-                return
+                return None
     except astroid.InferenceError:
-        return
+        return None
     return types.pop() if types else None
 
 
@@ -856,5 +905,64 @@ def is_registered_in_singledispatch_function(node):
 
         if isinstance(func_def, astroid.FunctionDef):
             return decorated_with(func_def, singledispatch_qnames)
+
+    return False
+
+
+def get_node_last_lineno(node):
+    """
+    Get the last lineno of the given node. For a simple statement this will just be node.lineno,
+    but for a node that has child statements (e.g. a method) this will be the lineno of the last
+    child statement recursively.
+    """
+    # 'finalbody' is always the last clause in a try statement, if present
+    if getattr(node, 'finalbody', False):
+        return get_node_last_lineno(node.finalbody[-1])
+    # For if, while, and for statements 'orelse' is always the last clause.
+    # For try statements 'orelse' is the last in the absence of a 'finalbody'
+    if getattr(node, 'orelse', False):
+        return get_node_last_lineno(node.orelse[-1])
+    # try statements have the 'handlers' last if there is no 'orelse' or 'finalbody'
+    if getattr(node, 'handlers', False):
+        return get_node_last_lineno(node.handlers[-1])
+    # All compound statements have a 'body'
+    if getattr(node, 'body', False):
+        return get_node_last_lineno(node.body[-1])
+    # Not a compound statement
+    return node.lineno
+
+
+def in_comprehension(node):
+    """Return True if the given node is in a comprehension"""
+    curnode = node
+    while curnode.parent:
+        curnode = curnode.parent
+        if is_comprehension(curnode):
+            return True
+
+    return False
+
+
+def is_enum_class(node):
+    """Check if a class definition defines an Enum class.
+
+    :param node: The class node to check.
+    :type node: astroid.ClassDef
+
+    :returns: True if the given node represents an Enum class. False otherwise.
+    :rtype: bool
+    """
+    for base in node.bases:
+        try:
+            inferred_bases = base.inferred()
+        except astroid.InferenceError:
+            continue
+
+        for ancestor in inferred_bases:
+            if not isinstance(ancestor, astroid.ClassDef):
+                continue
+
+            if ancestor.name == 'Enum' and ancestor.root().name == 'enum':
+                return True
 
     return False

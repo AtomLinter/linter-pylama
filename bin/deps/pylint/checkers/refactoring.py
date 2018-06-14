@@ -1,7 +1,15 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2016 Moisés López <moylop260@vauxoo.com>
-# Copyright (c) 2016 Claudiu Popa <pcmanticore@gmail.com>
-# Copyright (c) 2016 Alexander Todorov <atodorov@MrSenko.com>
+# Copyright (c) 2016-2017 Claudiu Popa <pcmanticore@gmail.com>
+# Copyright (c) 2016-2017 Łukasz Rogalski <rogalski.91@gmail.com>
+# Copyright (c) 2016 Moises Lopez <moylop260@vauxoo.com>
+# Copyright (c) 2016 Alexander Todorov <atodorov@otb.bg>
+# Copyright (c) 2017-2018 hippo91 <guillaume.peillex@gmail.com>
+# Copyright (c) 2017 Hugo <hugovk@users.noreply.github.com>
+# Copyright (c) 2017 Bryce Guinta <bryce.paul.guinta@gmail.com>
+# Copyright (c) 2017 Łukasz Sznuk <ls@rdprojekt.pl>
+# Copyright (c) 2017 Alex Hearn <alex.d.hearn@gmail.com>
+# Copyright (c) 2017 Antonio Ossa <aaossa@uc.cl>
+# Copyright (c) 2017 Ville Skyttä <ville.skytta@iki.fi>
 
 # Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 # For details: https://github.com/PyCQA/pylint/blob/master/COPYING
@@ -65,9 +73,12 @@ class RefactoringChecker(checkers.BaseTokenChecker):
         'R1701': ("Consider merging these isinstance calls to isinstance(%s, (%s))",
                   "consider-merging-isinstance",
                   "Used when multiple consecutive isinstance calls can be merged into one."),
-        'R1706': ("Consider using ternary (%s if %s else %s)",
+        'R1706': ("Consider using ternary (%s)",
                   "consider-using-ternary",
-                  "Used when one of known pre-python 2.5 ternary syntax is used."),
+                  "Used when one of known pre-python 2.5 ternary syntax is used.",),
+        'R1709': ("Boolean expression may be simplified to %s",
+                  "simplify-boolean-expression",
+                  "Emitted when redundant pre-python 2.5 ternary syntax is used.",),
         'R1702': ('Too many nested blocks (%s/%s)',
                   'too-many-nested-blocks',
                   'Used when a function or a method has too many nested '
@@ -102,24 +113,51 @@ class RefactoringChecker(checkers.BaseTokenChecker):
                   'weird bugs in your code. You should always use parentheses '
                   'explicitly for creating a tuple.',
                   {'minversion': (3, 0)}),
+        'R1708': ('Do not raise StopIteration in generator, use return statement instead',
+                  'stop-iteration-return',
+                  'According to PEP479, the raise of StopIteration to end the loop of '
+                  'a generator may lead to hard to find bugs. This PEP specify that '
+                  'raise StopIteration has to be replaced by a simple return statement',
+                  {'minversion': (3, 0)}),
+        'R1710': ('Either all return statements in a function should return an expression, '
+                  'or none of them should.',
+                  'inconsistent-return-statements',
+                  'According to PEP8, if any return statement returns an expression, '
+                  'any return statements where no value is returned should explicitly '
+                  'state this as return None, and an explicit return statement '
+                  'should be present at the end of the function (if reachable)'
+                 ),
     }
     options = (('max-nested-blocks',
                 {'default': 5, 'type': 'int', 'metavar': '<int>',
                  'help': 'Maximum number of nested blocks for function / '
                          'method body'}
+               ),
+               ('never-returning-functions',
+                {'default': ('optparse.Values', 'sys.exit',),
+                 'type': 'csv',
+                 'help': 'Complete name of functions that never returns. When checking '
+                         'for inconsistent-return-statements if a never returning function is '
+                         'called then it will be considered as an explicit return statement '
+                         'and no message will be printed.'}
                ),)
 
     priority = 0
 
     def __init__(self, linter=None):
         checkers.BaseTokenChecker.__init__(self, linter)
+        self._return_nodes = {}
         self._init()
+        self._never_returning_functions = None
 
     def _init(self):
         self._nested_blocks = []
         self._elifs = []
-        self._if_counter = 0
         self._nested_blocks_msg = None
+
+    def open(self):
+        # do this in open since config not fully initialized in __init__
+        self._never_returning_functions = set(self.config.never_returning_functions)
 
     @decorators.cachedproperty
     def _dummy_rgx(self):
@@ -144,7 +182,7 @@ class RefactoringChecker(checkers.BaseTokenChecker):
             orelse = node.parent.orelse
             # current if node must directly follow a "else"
             if orelse and orelse == [node]:
-                if self._elifs[self._if_counter]:
+                if (node.lineno, node.col_offset) in self._elifs:
                     return True
         return False
 
@@ -208,31 +246,17 @@ class RefactoringChecker(checkers.BaseTokenChecker):
         for index, token in enumerate(tokens):
             token_string = token[1]
             if token_string == 'elif':
-                self._elifs.append(True)
-            elif token_string == 'if':
-                self._elifs.append(False)
-            elif six.PY3 and token.exact_type == tokenize.COMMA:
-                self._check_one_element_trailing_comma_tuple(tokens, token, index)
-
-    def _check_one_element_trailing_comma_tuple(self, tokens, token, index):
-        left_tokens = itertools.islice(tokens, index + 1, None)
-        same_line_remaining_tokens = list(
-            other_token for other_token in left_tokens
-            if other_token.start[0] == token.start[0]
-        )
-        is_last_element = all(
-            other_token.type in (tokenize.NEWLINE, tokenize.COMMENT)
-            for other_token in same_line_remaining_tokens
-        )
-
-        if not same_line_remaining_tokens or not is_last_element:
-            return
-
-        assign_token = tokens[index-2:index-1]
-        if assign_token and '=' in assign_token[0].string:
-            if self.linter.is_message_enabled('trailing-comma-tuple'):
-                self.add_message('trailing-comma-tuple',
-                                 line=token.start[0])
+                # AST exists by the time process_tokens is called, so
+                # it's safe to assume tokens[index+1]
+                # exists. tokens[index+1][2] is the elif's position as
+                # reported by CPython and PyPy,
+                # tokens[index][2] is the actual position and also is
+                # reported by IronPython.
+                self._elifs.extend([tokens[index][2], tokens[index+1][2]])
+            elif six.PY3 and is_trailing_comma(tokens, index):
+                if self.linter.is_message_enabled('trailing-comma-tuple'):
+                    self.add_message('trailing-comma-tuple',
+                                     line=token.start[0])
 
     def leave_module(self, _):
         self._init()
@@ -282,12 +306,6 @@ class RefactoringChecker(checkers.BaseTokenChecker):
             for name in names.nodes_of_class(astroid.AssignName):
                 self._check_redefined_argument_from_local(name)
 
-    def visit_ifexp(self, _):
-        self._if_counter += 1
-
-    def visit_comprehension(self, node):
-        self._if_counter += len(node.ifs)
-
     def _check_superfluous_else_return(self, node):
         if not node.orelse:
             # Not interested in if statements without else.
@@ -302,14 +320,54 @@ class RefactoringChecker(checkers.BaseTokenChecker):
         self._check_simplifiable_if(node)
         self._check_nested_blocks(node)
         self._check_superfluous_else_return(node)
-        self._if_counter += 1
 
-    @utils.check_messages('too-many-nested-blocks')
-    def leave_functiondef(self, _):
+    @utils.check_messages('too-many-nested-blocks', 'inconsistent-return-statements')
+    def leave_functiondef(self, node):
         # check left-over nested blocks stack
         self._emit_nested_blocks_message_if_needed(self._nested_blocks)
         # new scope = reinitialize the stack of nested blocks
         self._nested_blocks = []
+        # check consistent return statements
+        self._check_consistent_returns(node)
+        self._return_nodes[node.name] = []
+
+    @utils.check_messages('stop-iteration-return')
+    def visit_raise(self, node):
+        self._check_stop_iteration_inside_generator(node)
+
+    def _check_stop_iteration_inside_generator(self, node):
+        """Check if an exception of type StopIteration is raised inside a generator"""
+        frame = node.frame()
+        if not isinstance(frame, astroid.FunctionDef) or not frame.is_generator():
+            return
+        if utils.node_ignores_exception(node, StopIteration):
+            return
+        if not node.exc:
+            return
+        exc = utils.safe_infer(node.exc)
+        if exc is None or exc is astroid.Uninferable:
+            return
+        if self._check_exception_inherit_from_stopiteration(exc):
+            self.add_message('stop-iteration-return', node=node)
+
+    @staticmethod
+    def _check_exception_inherit_from_stopiteration(exc):
+        """Return True if the exception node in argument inherit from StopIteration"""
+        stopiteration_qname = '{}.StopIteration'.format(utils.EXCEPTIONS_MODULE)
+        return any(_class.qname() == stopiteration_qname for _class in exc.mro())
+
+    @utils.check_messages('stop-iteration-return')
+    def visit_call(self, node):
+        self._check_raising_stopiteration_in_generator_next_call(node)
+
+    def _check_raising_stopiteration_in_generator_next_call(self, node):
+        """Check if a StopIteration exception is raised by the call to next function"""
+        inferred = utils.safe_infer(node.func)
+        if getattr(inferred, 'name', '') == 'next':
+            frame = node.frame()
+            if (isinstance(frame, astroid.FunctionDef) and frame.is_generator()
+                    and not utils.node_ignores_exception(node, StopIteration)):
+                self.add_message('stop-iteration-return', node=node)
 
     def _check_nested_blocks(self, node):
         """Update and check the number of nested blocks
@@ -329,7 +387,7 @@ class RefactoringChecker(checkers.BaseTokenChecker):
                     break
                 self._nested_blocks.pop()
             # if the node is a elif, this should not be another nesting level
-            if isinstance(node, astroid.If) and self._elifs[self._if_counter]:
+            if isinstance(node, astroid.If) and self._is_actual_elif(node):
                 if self._nested_blocks:
                     self._nested_blocks.pop()
             self._nested_blocks.append(node)
@@ -395,7 +453,7 @@ class RefactoringChecker(checkers.BaseTokenChecker):
                              node=node,
                              args=(duplicated_name, ', '.join(names)))
 
-    @utils.check_messages('consider-using-ternary')
+    @utils.check_messages('simplify-boolean-expression', 'consider-using-ternary')
     def visit_assign(self, node):
         if self._is_and_or_ternary(node.value):
             cond, truth_value, false_value = self._and_or_ternary_arguments(node.value)
@@ -404,11 +462,17 @@ class RefactoringChecker(checkers.BaseTokenChecker):
         else:
             return
 
-        self.add_message(
-            'consider-using-ternary', node=node,
-            args=(truth_value.as_string(),
-                  cond.as_string(),
-                  false_value.as_string()),)
+        if truth_value.bool_value() is False:
+            message = 'simplify-boolean-expression'
+            suggestion = false_value.as_string()
+        else:
+            message = 'consider-using-ternary'
+            suggestion = '{truth} if {cond} else {false}'.format(
+                truth=truth_value.as_string(),
+                cond=cond.as_string(),
+                false=false_value.as_string()
+            )
+        self.add_message(message, node=node, args=(suggestion,))
 
     visit_return = visit_assign
 
@@ -446,6 +510,107 @@ class RefactoringChecker(checkers.BaseTokenChecker):
         condition = node.slice.value
         return condition, true_value, false_value
 
+    def visit_functiondef(self, node):
+        self._return_nodes[node.name] = []
+        return_nodes = node.nodes_of_class(astroid.Return)
+        self._return_nodes[node.name] = [_rnode for _rnode in return_nodes
+                                         if _rnode.frame() == node.frame()]
+
+    def _check_consistent_returns(self, node):
+        """Check that all return statements inside a function are consistent.
+
+        Return statements are consistent if:
+            - all returns are explicit and if there is no implicit return;
+            - all returns are empty and if there is, possibly, an implicit return.
+
+        Args:
+            node (astroid.FunctionDef): the function holding the return statements.
+
+        """
+        # explicit return statements are those with a not None value
+        explicit_returns = [_node for _node in self._return_nodes[node.name]
+                            if _node.value is not None]
+        if not explicit_returns:
+            return
+        if (len(explicit_returns) == len(self._return_nodes[node.name])
+                and self._is_node_return_ended(node)):
+            return
+        self.add_message('inconsistent-return-statements', node=node)
+
+    def _is_node_return_ended(self, node):
+        """Check if the node ends with an explicit return statement.
+
+        Args:
+            node (astroid.NodeNG): node to be checked.
+
+        Returns:
+            bool: True if the node ends with an explicit statement, False otherwise.
+
+        """
+        # Recursion base case
+        if isinstance(node, astroid.Return):
+            return True
+        if isinstance(node, astroid.Call):
+            try:
+                funcdef_node = node.func.infered()[0]
+                if self._is_function_def_never_returning(funcdef_node):
+                    return True
+            except astroid.InferenceError:
+                pass
+        # Avoid the check inside while loop as we don't know
+        # if they will be completed
+        if isinstance(node, astroid.While):
+            return True
+        if isinstance(node, astroid.Raise):
+            # a Raise statement doesn't need to end with a return statement
+            # but if the exception raised is handled, then the handler has to
+            # ends with a return statement
+            if not node.exc:
+                # Ignore bare raises
+                return True
+            if not utils.is_node_inside_try_except(node):
+                # If the raise statement is not inside a try/except statement
+                # then the exception is raised and cannot be caught. No need
+                # to infer it.
+                return True
+            exc = utils.safe_infer(node.exc)
+            if exc is None or exc is astroid.Uninferable:
+                return False
+            exc_name = exc.pytype().split('.')[-1]
+            handlers = utils.get_exception_handlers(node, exc_name)
+            handlers = list(handlers) if handlers is not None else []
+            if handlers:
+                # among all the handlers handling the exception at least one
+                # must end with a return statement
+                return any(self._is_node_return_ended(_handler) for _handler in handlers)
+            # if no handlers handle the exception then it's ok
+            return True
+        if isinstance(node, astroid.If):
+            # if statement is returning if there are exactly two return statements in its
+            # children : one for the body part, the other for the orelse part
+            # Do not check if inner function definition are return ended.
+            return_stmts = [self._is_node_return_ended(_child) for _child in node.get_children()
+                            if not isinstance(_child, astroid.FunctionDef)]
+            return sum(return_stmts) == 2
+        # recurses on the children of the node except for those which are except handler
+        # because one cannot be sure that the handler will really be used
+        return any(self._is_node_return_ended(_child) for _child in node.get_children()
+                   if not isinstance(_child, astroid.ExceptHandler))
+
+    def _is_function_def_never_returning(self, node):
+        """Return True if the function never returns. False otherwise.
+
+        Args:
+            node (astroid.FunctionDef): function definition node to be analyzed.
+
+        Returns:
+            bool: True if the function never returns, False otherwise.
+        """
+        try:
+            return node.qname() in self._never_returning_functions
+        except TypeError:
+            return False
+
 
 class RecommandationChecker(checkers.BaseChecker):
     __implements__ = (interfaces.IAstroidChecker,)
@@ -474,7 +639,6 @@ class RecommandationChecker(checkers.BaseChecker):
         inferred = utils.safe_infer(node.func)
         if not inferred:
             return
-
         if not isinstance(inferred, astroid.BoundMethod):
             return
         if not isinstance(inferred.bound, astroid.Dict) or inferred.name != 'keys':
@@ -486,24 +650,27 @@ class RecommandationChecker(checkers.BaseChecker):
     @utils.check_messages('consider-using-enumerate')
     def visit_for(self, node):
         """Emit a convention whenever range and len are used for indexing."""
-        # Verify that we have a `range(len(...))` call and that the object
-        # which is iterated is used as a subscript in the body of the for.
+        # Verify that we have a `range([start], len(...), [stop])` call and
+        # that the object which is iterated is used as a subscript in the
+        # body of the for.
 
         # Is it a proper range call?
         if not isinstance(node.iter, astroid.Call):
             return
         if not self._is_builtin(node.iter.func, 'range'):
             return
-        if len(node.iter.args) != 1:
+        if len(node.iter.args) == 2 and not _is_constant_zero(node.iter.args[0]):
+            return
+        if len(node.iter.args) > 2:
             return
 
         # Is it a proper len call?
-        if not isinstance(node.iter.args[0], astroid.Call):
+        if not isinstance(node.iter.args[-1], astroid.Call):
             return
-        second_func = node.iter.args[0].func
+        second_func = node.iter.args[-1].func
         if not self._is_builtin(second_func, 'len'):
             return
-        len_args = node.iter.args[0].args
+        len_args = node.iter.args[-1].args
         if not len_args or len(len_args) != 1:
             return
         iterating_object = len_args[0]
@@ -631,10 +798,12 @@ class LenChecker(checkers.BaseChecker):
 
     # configuration section name
     name = 'len'
-    msgs = {'C1801': ('Do not use `len(SEQUENCE)` as condition value',
+    msgs = {'C1801': ('Do not use `len(SEQUENCE)` to determine if a sequence is empty',
                       'len-as-condition',
-                      'Used when Pylint detects incorrect use of len(sequence) inside '
-                      'conditions.'),
+                      'Used when Pylint detects that len(sequence) is being used inside '
+                      'a condition to determine if a sequence is empty. Instead of '
+                      'comparing the length to 0, rely on the fact that empty sequences '
+                      'are false.'),
            }
 
     priority = -2
@@ -705,6 +874,46 @@ class LenChecker(checkers.BaseChecker):
                 # for example: return len() > 0 should not report anything
                 if _node_is_test_condition(parent):
                     self.add_message('len-as-condition', node=node)
+
+
+def is_trailing_comma(tokens, index):
+    """Check if the given token is a trailing comma
+
+    :param tokens: Sequence of modules tokens
+    :type tokens: list[tokenize.TokenInfo]
+    :param int index: Index of token under check in tokens
+    :returns: True if the token is a comma which trails an expression
+    :rtype: bool
+    """
+    token = tokens[index]
+    if token.exact_type != tokenize.COMMA:
+        return False
+    # Must have remaining tokens on the same line such as NEWLINE
+    left_tokens = itertools.islice(tokens, index + 1, None)
+    same_line_remaining_tokens = list(itertools.takewhile(
+        lambda other_token, _token=token: other_token.start[0] == _token.start[0],
+        left_tokens
+    ))
+    # Note: If the newline is tokenize.NEWLINE and not tokenize.NL
+    # then the newline denotes the end of expression
+    is_last_element = all(
+        other_token.type in (tokenize.NEWLINE, tokenize.COMMENT)
+        for other_token in same_line_remaining_tokens
+    )
+    if not same_line_remaining_tokens or not is_last_element:
+        return False
+    def get_curline_index_start():
+        """Get the index denoting the start of the current line"""
+        for subindex, token in enumerate(reversed(tokens[:index])):
+            # See Lib/tokenize.py and Lib/token.py in cpython for more info
+            if token.type in (tokenize.NEWLINE, tokenize.NL):
+                return index - subindex
+        return 0
+    curline_start = get_curline_index_start()
+    for prevtoken in tokens[curline_start:index]:
+        if '=' in prevtoken.string:
+            return True
+    return False
 
 
 def register(linter):

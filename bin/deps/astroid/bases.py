@@ -170,10 +170,13 @@ class BaseInstance(Proxy):
             for stmt in _infer_stmts(self._wrap_attr(get_attr, context),
                                      context, frame=self):
                 yield stmt
-        except exceptions.AttributeInferenceError:
+        except exceptions.AttributeInferenceError as error:
             try:
                 # fallback to class.igetattr since it has some logic to handle
                 # descriptors
+                # But only if the _proxied is the Class.
+                if self._proxied.__class__.__name__ != 'ClassDef':
+                    util.reraise(exceptions.InferenceError(**vars(error)))
                 attrs = self._proxied.igetattr(name, context, class_context=False)
                 for stmt in self._wrap_attr(attrs, context):
                     yield stmt
@@ -341,47 +344,47 @@ class BoundMethod(UnboundMethod):
         mcs = next(caller.args[0].infer(context=context))
         if mcs.__class__.__name__ != 'ClassDef':
             # Not a valid first argument.
-            return
+            return None
         if not mcs.is_subtype_of("%s.type" % BUILTINS):
             # Not a valid metaclass.
-            return
+            return None
 
         # Verify the name
         name = next(caller.args[1].infer(context=context))
         if name.__class__.__name__ != 'Const':
             # Not a valid name, needs to be a const.
-            return
+            return None
         if not isinstance(name.value, str):
             # Needs to be a string.
-            return
+            return None
 
         # Verify the bases
         bases = next(caller.args[2].infer(context=context))
         if bases.__class__.__name__ != 'Tuple':
             # Needs to be a tuple.
-            return
+            return None
         inferred_bases = [next(elt.infer(context=context))
                           for elt in bases.elts]
         if any(base.__class__.__name__ != 'ClassDef'
                for base in inferred_bases):
             # All the bases needs to be Classes
-            return
+            return None
 
         # Verify the attributes.
         attrs = next(caller.args[3].infer(context=context))
         if attrs.__class__.__name__ != 'Dict':
             # Needs to be a dictionary.
-            return
+            return None
         cls_locals = collections.defaultdict(list)
         for key, value in attrs.items:
             key = next(key.infer(context=context))
             value = next(value.infer(context=context))
             if key.__class__.__name__ != 'Const':
                 # Something invalid as an attribute.
-                return
+                return None
             if not isinstance(key.value, str):
                 # Not a proper attribute.
-                return
+                return None
             cls_locals[key.value].append(value)
 
         # Build the class from now.

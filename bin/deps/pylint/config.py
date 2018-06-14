@@ -1,6 +1,22 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2006-2010, 2012-2014 LOGILAB S.A. (Paris, FRANCE) <contact@logilab.fr>
-# Copyright (c) 2014-2016 Claudiu Popa <pcmanticore@gmail.com>
+# Copyright (c) 2008 pyves@crater.logilab.fr <pyves@crater.logilab.fr>
+# Copyright (c) 2010 Julien Jehannet <julien.jehannet@logilab.fr>
+# Copyright (c) 2013 Google, Inc.
+# Copyright (c) 2013 John McGehee <jmcgehee@altera.com>
+# Copyright (c) 2014-2017 Claudiu Popa <pcmanticore@gmail.com>
+# Copyright (c) 2014 Brett Cannon <brett@python.org>
+# Copyright (c) 2014 Arun Persaud <arun@nubati.net>
 # Copyright (c) 2015 Aru Sahni <arusahni@gmail.com>
+# Copyright (c) 2015 John Kirkham <jakirkham@gmail.com>
+# Copyright (c) 2015 Ionel Cristian Maries <contact@ionelmc.ro>
+# Copyright (c) 2016 Erik <erik.eriksson@yahoo.com>
+# Copyright (c) 2016 Alexander Todorov <atodorov@otb.bg>
+# Copyright (c) 2016 Moises Lopez <moylop260@vauxoo.com>
+# Copyright (c) 2017 hippo91 <guillaume.peillex@gmail.com>
+# Copyright (c) 2017 ahirnish <ahirnish@gmail.com>
+# Copyright (c) 2017 Łukasz Rogalski <rogalski.91@gmail.com>
+# Copyright (c) 2017 Ville Skyttä <ville.skytta@iki.fi>
 
 # Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 # For details: https://github.com/PyCQA/pylint/blob/master/COPYING
@@ -310,7 +326,7 @@ class Option(optparse.Option):
 
 class OptionParser(optparse.OptionParser):
 
-    def __init__(self, option_class=Option, *args, **kwargs):
+    def __init__(self, option_class, *args, **kwargs):
         optparse.OptionParser.__init__(self, option_class=Option, *args, **kwargs)
 
     def format_option_help(self, formatter=None):
@@ -461,7 +477,7 @@ class OptionsManagerMixIn(object):
         # configuration file parser
         self.cfgfile_parser = configparser.ConfigParser(inline_comment_prefixes=('#', ';'))
         # command line parser
-        self.cmdline_parser = OptionParser(usage=usage, version=version)
+        self.cmdline_parser = OptionParser(Option, usage=usage, version=version)
         self.cmdline_parser.options_manager = self
         self._optik_option_attrs = set(self.cmdline_parser.option_class.ATTRS)
 
@@ -626,22 +642,25 @@ class OptionsManagerMixIn(object):
             config_file = self.config_file
         if config_file is not None:
             config_file = os.path.expanduser(config_file)
-        if config_file and os.path.exists(config_file):
+            if not os.path.exists(config_file):
+                raise IOError("The config file {:s} doesn't exist!".format(config_file))
+
+        use_config_file = config_file and os.path.exists(config_file)
+        if use_config_file:
             parser = self.cfgfile_parser
 
             # Use this encoding in order to strip the BOM marker, if any.
             with io.open(config_file, 'r', encoding='utf_8_sig') as fp:
-                # pylint: disable=deprecated-method
-                parser.readfp(fp)
+                parser.read_file(fp)
 
             # normalize sections'title
             for sect, values in list(parser._sections.items()):
                 if not sect.isupper() and values:
                     parser._sections[sect.upper()] = values
-        elif not self.quiet:
-            msg = 'No config file found, using default configuration'
-            print(msg, file=sys.stderr)
+
+        if self.quiet:
             return
+
 
     def load_config_file(self):
         """dispatch values previously read from a configuration file to each

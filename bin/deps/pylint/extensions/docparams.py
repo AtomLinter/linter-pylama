@@ -1,7 +1,12 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2014-2015 Bruno Daniel <bruno.daniel@blue-yonder.com>
-# Copyright (c) 2015-2016 Claudiu Popa <pcmanticore@gmail.com>
-# Copyright (c) 2016 Ashley Whetter <ashley@awhetter.co.uk>
+# Copyright (c) 2015-2017 Claudiu Popa <pcmanticore@gmail.com>
+# Copyright (c) 2016-2018 Ashley Whetter <ashley@awhetter.co.uk>
 # Copyright (c) 2016 Glenn Matthews <glenn@e-dad.net>
+# Copyright (c) 2016 Glenn Matthews <glmatthe@cisco.com>
+# Copyright (c) 2016 Moises Lopez <moylop260@vauxoo.com>
+# Copyright (c) 2017 Ville Skyttä <ville.skytta@iki.fi>
+# Copyright (c) 2017 John Paraskevopoulos <io.paraskev@gmail.com>
 
 # Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 # For details: https://github.com/PyCQA/pylint/blob/master/COPYING
@@ -14,7 +19,7 @@ import astroid
 
 from pylint.interfaces import IAstroidChecker
 from pylint.checkers import BaseChecker
-from pylint.checkers.utils import node_frame_class
+from pylint.checkers import utils as checker_utils
 import pylint.extensions._check_docs_utils as utils
 
 
@@ -139,7 +144,7 @@ class DocstringParameterChecker(BaseChecker):
     def check_functiondef_params(self, node, node_doc):
         node_allow_no_param = None
         if node.name in self.constructor_names:
-            class_node = node_frame_class(node)
+            class_node = checker_utils.node_frame_class(node)
             if class_node is not None:
                 class_doc = utils.docstringify(class_node.doc)
                 self.check_single_constructor_params(class_doc, node_doc, class_node)
@@ -164,7 +169,8 @@ class DocstringParameterChecker(BaseChecker):
             node_doc, node.args, node, node_allow_no_param)
 
     def check_functiondef_returns(self, node, node_doc):
-        if not node_doc.supports_yields and node.is_generator():
+        if ((not node_doc.supports_yields and node.is_generator())
+                or node.is_abstract()):
             return
 
         return_nodes = node.nodes_of_class(astroid.Return)
@@ -175,7 +181,7 @@ class DocstringParameterChecker(BaseChecker):
                 node=node)
 
     def check_functiondef_yields(self, node, node_doc):
-        if not node_doc.supports_yields:
+        if not node_doc.supports_yields or node.is_abstract():
             return
 
         if ((node_doc.has_yields() or node_doc.has_yields_type()) and
@@ -192,6 +198,13 @@ class DocstringParameterChecker(BaseChecker):
         expected_excs = utils.possible_exc_types(node)
         if not expected_excs:
             return
+
+        if not func_node.doc:
+            # If this is a property setter,
+            # the property should have the docstring instead.
+            property_ = utils.get_setters_property(func_node)
+            if property_:
+                func_node = property_
 
         doc = utils.docstringify(func_node.doc)
         if not doc.is_valid():
@@ -215,13 +228,17 @@ class DocstringParameterChecker(BaseChecker):
         if not doc.is_valid() and self.config.accept_no_return_doc:
             return
 
-        if not doc.has_returns():
+        is_property = checker_utils.decorated_with_property(func_node)
+
+        if not (doc.has_returns() or
+                (doc.has_property_returns() and is_property)):
             self.add_message(
                 'missing-return-doc',
                 node=func_node
             )
 
-        if not doc.has_rtype():
+        if not (doc.has_rtype() or
+                (doc.has_property_type() and is_property)):
             self.add_message(
                 'missing-return-type-doc',
                 node=func_node
@@ -397,11 +414,17 @@ class DocstringParameterChecker(BaseChecker):
         Adds a message on :param:`node` for the missing exception type.
 
         :param missing_excs: A list of missing exception types.
-        :type missing_excs: list
+        :type missing_excs: set(str)
 
         :param node: The node show the message on.
         :type node: astroid.node_classes.NodeNG
         """
+        if node.is_abstract():
+            try:
+                missing_excs.remove('NotImplementedError')
+            except KeyError:
+                pass
+
         if not missing_excs:
             return
 

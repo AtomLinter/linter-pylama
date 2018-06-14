@@ -135,7 +135,8 @@ nodes.Const.infer_binary_op = const_infer_binary_op
 def _multiply_seq_by_int(self, opnode, other, context):
     node = self.__class__(parent=opnode)
     elts = []
-    for elt in self.elts:
+    filtered_elts = (elt for elt in self.elts if elt is not util.Uninferable)
+    for elt in filtered_elts:
         infered = helpers.safe_infer(elt, context)
         if infered is None:
             infered = util.Uninferable
@@ -444,7 +445,10 @@ def _infer_context_manager(self, mgr, context):
         # Get the first yield point. If it has multiple yields,
         # then a RuntimeError will be raised.
         # TODO(cpopa): Handle flows.
-        yield_point = next(func.nodes_of_class(nodes.Yield), None)
+        possible_yield_points = func.nodes_of_class(nodes.Yield)
+        # Ignore yields in nested functions
+        yield_point = next((node for node in possible_yield_points
+                            if node.scope() == func), None)
         if yield_point:
             if not yield_point.value:
                 # TODO(cpopa): an empty yield. Should be wrapped to Const.
@@ -484,6 +488,7 @@ def with_assigned_stmts(self, node=None, context=None, asspath=None):
                 return 42
         with ContextManager() as f:
             pass
+
         # ContextManager().infer() will return ContextManager
         # f.infer() will return 42.
 
@@ -512,6 +517,11 @@ def with_assigned_stmts(self, node=None, context=None, asspath=None):
                 except IndexError:
                     util.reraise(exceptions.InferenceError(
                         'Tried to infer a nonexistent target with index {index} '
+                        'in {node!r}.', node=self, targets=node,
+                        assign_path=asspath, context=context))
+                except TypeError:
+                    util.reraise(exceptions.InferenceError(
+                        'Tried to unpack an non-iterable value '
                         'in {node!r}.', node=self, targets=node,
                         assign_path=asspath, context=context))
             yield obj
