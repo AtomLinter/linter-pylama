@@ -5,14 +5,13 @@ Implement the central Checker class.
 Also, it models the Bindings and Scopes.
 """
 import __future__
+import ast
 import doctest
 import os
 import sys
 
 PY2 = sys.version_info < (3, 0)
-PY32 = sys.version_info < (3, 3)    # Python 2.5 to 3.2
-PY33 = sys.version_info < (3, 4)    # Python 2.5 to 3.3
-PY34 = sys.version_info < (3, 5)    # Python 2.5 to 3.4
+PY34 = sys.version_info < (3, 5)    # Python 2.7 to 3.4
 try:
     sys.pypy_version_info
     PYPY = True
@@ -21,16 +20,6 @@ except AttributeError:
 
 builtin_vars = dir(__import__('__builtin__' if PY2 else 'builtins'))
 
-try:
-    import ast
-except ImportError:     # Python 2.5
-    import _ast as ast
-
-    if 'decorator_list' not in ast.ClassDef._fields:
-        # Patch the missing attribute 'decorator_list'
-        ast.ClassDef.decorator_list = ()
-        ast.FunctionDef.decorator_list = property(lambda s: s.decorators)
-
 from pyflakes import messages
 
 
@@ -38,12 +27,22 @@ if PY2:
     def getNodeType(node_class):
         # workaround str.upper() which is locale-dependent
         return str(unicode(node_class.__name__).upper())
+
+    def get_raise_argument(node):
+        return node.type
+
 else:
     def getNodeType(node_class):
         return node_class.__name__.upper()
 
+    def get_raise_argument(node):
+        return node.exc
+
+    # Silence `pyflakes` from reporting `undefined name 'unicode'` in Python 3.
+    unicode = str
+
 # Python >= 3.3 uses ast.Try instead of (ast.TryExcept + ast.TryFinally)
-if PY32:
+if PY2:
     def getAlternatives(n):
         if isinstance(n, (ast.If, ast.TryFinally)):
             return [n.body]
@@ -128,11 +127,15 @@ def convert_to_value(item):
             result.name,
             result,
         )
-    elif (not PY33) and isinstance(item, ast.NameConstant):
+    elif (not PY2) and isinstance(item, ast.NameConstant):
         # None, True, False are nameconstants in python3, but names in 2
         return item.value
     else:
         return UnhandledKeyType()
+
+
+def is_notimplemented_name_node(node):
+    return isinstance(node, ast.Name) and getNodeName(node) == 'NotImplemented'
 
 
 class Binding(object):
@@ -407,8 +410,8 @@ class FunctionScope(Scope):
     @ivar globals: Names declared 'global' in this function.
     """
     usesLocals = False
-    alwaysUsed = set(['__tracebackhide__',
-                      '__traceback_info__', '__traceback_supplement__'])
+    alwaysUsed = {'__tracebackhide__', '__traceback_info__',
+                  '__traceback_supplement__'}
 
     def __init__(self):
         super(FunctionScope, self).__init__()
@@ -676,8 +679,9 @@ class Checker(object):
                     self.report(messages.RedefinedInListComp,
                                 node, value.name, existing.source)
                 elif not existing.used and value.redefines(existing):
-                    self.report(messages.RedefinedWhileUnused,
-                                node, value.name, existing.source)
+                    if value.name != '_' or isinstance(existing, Importation):
+                        self.report(messages.RedefinedWhileUnused,
+                                    node, value.name, existing.source)
 
             elif isinstance(existing, Importation) and value.redefines(existing):
                 existing.redefined.append(node)
@@ -706,10 +710,14 @@ class Checker(object):
 
         # try enclosing function scopes and global scope
         for scope in self.scopeStack[-1::-1]:
-            # only generators used in a class scope can access the names
-            # of the class. this is skipped during the first iteration
-            if in_generators is False and isinstance(scope, ClassScope):
-                continue
+            if isinstance(scope, ClassScope):
+                if not PY2 and name == '__class__':
+                    return
+                elif in_generators is False:
+                    # only generators used in a class scope can access the
+                    # names of the class. this is skipped during the first
+                    # iteration
+                    continue
 
             try:
                 scope[name].used = (self.scope, node)
@@ -919,12 +927,45 @@ class Checker(object):
         self.popScope()
         self.scopeStack = saved_stack
 
+    def handleAnnotation(self, annotation, node):
+        if isinstance(annotation, ast.Str):
+            # Defer handling forward annotation.
+            def handleForwardAnnotation():
+                try:
+                    tree = ast.parse(annotation.s)
+                except SyntaxError:
+                    self.report(
+                        messages.ForwardAnnotationSyntaxError,
+                        node,
+                        annotation.s,
+                    )
+                    return
+
+                body = tree.body
+                if len(body) != 1 or not isinstance(body[0], ast.Expr):
+                    self.report(
+                        messages.ForwardAnnotationSyntaxError,
+                        node,
+                        annotation.s,
+                    )
+                    return
+
+                parsed_annotation = tree.body[0].value
+                for descendant in ast.walk(parsed_annotation):
+                    ast.copy_location(descendant, annotation)
+
+                self.handleNode(parsed_annotation, node)
+
+            self.deferFunction(handleForwardAnnotation)
+        else:
+            self.handleNode(annotation, node)
+
     def ignore(self, node):
         pass
 
     # "stmt" type nodes
     DELETE = PRINT = FOR = ASYNCFOR = WHILE = IF = WITH = WITHITEM = \
-        ASYNCWITH = ASYNCWITHITEM = RAISE = TRYFINALLY = EXEC = \
+        ASYNCWITH = ASYNCWITHITEM = TRYFINALLY = EXEC = \
         EXPR = ASSIGN = handleChildren
 
     PASS = ignore
@@ -947,6 +988,19 @@ class Checker(object):
         BITOR = BITXOR = BITAND = FLOORDIV = INVERT = NOT = UADD = USUB = \
         EQ = NOTEQ = LT = LTE = GT = GTE = IS = ISNOT = IN = NOTIN = \
         MATMULT = ignore
+
+    def RAISE(self, node):
+        self.handleChildren(node)
+
+        arg = get_raise_argument(node)
+
+        if isinstance(arg, ast.Call):
+            if is_notimplemented_name_node(arg.func):
+                # Handle "raise NotImplemented(...)"
+                self.report(messages.RaiseNotImplemented, node)
+        elif is_notimplemented_name_node(arg):
+            # Handle "raise NotImplemented"
+            self.report(messages.RaiseNotImplemented, node)
 
     # additional node types
     COMPREHENSION = KEYWORD = FORMATTEDVALUE = JOINEDSTR = handleChildren
@@ -1141,9 +1195,9 @@ class Checker(object):
             wildcard = getattr(node.args, arg_name)
             if not wildcard:
                 continue
-            args.append(wildcard if PY33 else wildcard.arg)
+            args.append(wildcard if PY2 else wildcard.arg)
             if is_py3_func:
-                if PY33:  # Python 2.5 to 3.3
+                if PY2:  # Python 2.7
                     argannotation = arg_name + 'annotation'
                     annotations.append(getattr(node.args, argannotation))
                 else:     # Python >= 3.4
@@ -1157,9 +1211,11 @@ class Checker(object):
                 if arg in args[:idx]:
                     self.report(messages.DuplicateArgument, node, arg)
 
-        for child in annotations + defaults:
-            if child:
-                self.handleNode(child, node)
+        for annotation in annotations:
+            self.handleAnnotation(annotation, node)
+
+        for default in defaults:
+            self.handleNode(default, node)
 
         def runFunction():
 
@@ -1182,7 +1238,7 @@ class Checker(object):
                     self.report(messages.UnusedVariable, binding.source, name)
             self.deferAssignment(checkUnusedAssignments)
 
-            if PY32:
+            if PY2:
                 def checkReturnWithArgumentInsideGenerator():
                     """
                     Check to see if there is any return statement with
@@ -1319,34 +1375,52 @@ class Checker(object):
             self.handleChildren(node)
             return
 
-        # 3.x: the name of the exception, which is not a Name node, but
-        # a simple string, creates a local that is only bound within the scope
-        # of the except: block.
+        # If the name already exists in the scope, modify state of existing
+        # binding.
+        if node.name in self.scope:
+            self.handleNodeStore(node)
+
+        # 3.x: the name of the exception, which is not a Name node, but a
+        # simple string, creates a local that is only bound within the scope of
+        # the except: block. As such, temporarily remove the existing binding
+        # to more accurately determine if the name is used in the except:
+        # block.
 
         for scope in self.scopeStack[::-1]:
-            if node.name in scope:
-                is_name_previously_defined = True
+            try:
+                binding = scope.pop(node.name)
+            except KeyError:
+                pass
+            else:
+                prev_definition = scope, binding
                 break
         else:
-            is_name_previously_defined = False
+            prev_definition = None
 
         self.handleNodeStore(node)
         self.handleChildren(node)
-        if not is_name_previously_defined:
-            # See discussion on https://github.com/PyCQA/pyflakes/pull/59
 
-            # We're removing the local name since it's being unbound
-            # after leaving the except: block and it's always unbound
-            # if the except: block is never entered. This will cause an
-            # "undefined name" error raised if the checked code tries to
-            # use the name afterwards.
-            #
-            # Unless it's been removed already. Then do nothing.
+        # See discussion on https://github.com/PyCQA/pyflakes/pull/59
 
-            try:
-                del self.scope[node.name]
-            except KeyError:
-                pass
+        # We're removing the local name since it's being unbound after leaving
+        # the except: block and it's always unbound if the except: block is
+        # never entered. This will cause an "undefined name" error raised if
+        # the checked code tries to use the name afterwards.
+        #
+        # Unless it's been removed already. Then do nothing.
+
+        try:
+            binding = self.scope.pop(node.name)
+        except KeyError:
+            pass
+        else:
+            if not binding.used:
+                self.report(messages.UnusedVariable, node, node.name)
+
+        # Restore.
+        if prev_definition:
+            scope, binding = prev_definition
+            scope[node.name] = binding
 
     def ANNASSIGN(self, node):
         if node.value:
@@ -1354,7 +1428,7 @@ class Checker(object):
             # Otherwise it's not really ast.Store and shouldn't silence
             # UndefinedLocal warnings.
             self.handleNode(node.target, node)
-        self.handleNode(node.annotation, node)
+        self.handleAnnotation(node.annotation, node)
         if node.value:
             # If the assignment has value, handle the *value* now.
             self.handleNode(node.value, node)
