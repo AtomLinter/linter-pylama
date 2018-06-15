@@ -3,8 +3,9 @@
 import os
 import sys
 
-CURDIR = os.path.abspath(os.path.dirname(__file__))
-sys.path.insert(0, os.path.join(CURDIR, '..', '..', 'deps'))
+CURDIR = os.path.dirname(__file__)
+sys.path.insert(
+    0, os.path.abspath(os.path.join(CURDIR, '..', '..', 'deps')))
 
 
 LINTERS = {}
