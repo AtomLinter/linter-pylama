@@ -1,28 +1,38 @@
-matrix:
-  include:
-    - os: linux
-      language: python
-      env: ATOM_CHANNEL=stable
-    - os: linux
-      language: python
-      env: ATOM_CHANNEL=beta
-    - os: osx
-      language: generic
-      env: ATOM_CHANNEL=stable
-    - os: osx
-      language: generic
-      env: ATOM_CHANNEL=beta
-
+### Project specific config ###
+language: python
 install:
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then ln -s $(which python2) /usr/local/bin/python; ln -s $(which pip2) /usr/local/bin/pip; fi
   - pip install pylama pylama_pylint
 
-script: 'curl -s https://raw.githubusercontent.com/atom/ci/master/build-package.sh | sh'
+jobs:
+  include:
+    # Test Atom versions
+    - stage: test
+      os: linux
+      env: ATOM_CHANNEL=stable
+    - stage: test
+      os: linux
+      env: ATOM_CHANNEL=beta
+    - stage: test
+      os: osx
+      env: ATOM_CHANNEL=stable
+
+### Generic setup follows ###
+script:
+  - curl -s -O https://raw.githubusercontent.com/atom/ci/master/build-package.sh
+  - chmod u+x build-package.sh
+  - "./build-package.sh"
 
 notifications:
   email:
     on_success: never
     on_failure: change
+
+branches:
+  only:
+    - master
+
+git:
+  depth: 10
 
 sudo: false
 
@@ -30,13 +40,11 @@ dist: trusty
 
 addons:
   apt:
-    sources:
-      - ubuntu-toolchain-r-test
     packages:
-      - g++-6
-      - fakeroot
-      - git
-      - libsecret-1-dev
+    - build-essential
+    - git
+    - libgnome-keyring-dev
+    - fakeroot
 
-git:
-  depth: 10
+stages:
+  - test
