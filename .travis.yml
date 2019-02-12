@@ -2,18 +2,20 @@
 language: python
 install:
   - pip install pylama pylama_pylint
-
 jobs:
   include:
     # Test Atom versions
     - stage: test
       os: linux
+      python: "2.7"
       env: ATOM_CHANNEL=stable
     - stage: test
       os: linux
+      python: "3.7"
       env: ATOM_CHANNEL=beta
     - stage: test
       os: osx
+      python: "2.7.15"
       env: ATOM_CHANNEL=stable
 
 ### Generic setup follows ###
