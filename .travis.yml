@@ -11,7 +11,7 @@ jobs:
       env: ATOM_CHANNEL=stable
     - stage: test
       os: linux
-      python: "3.7"
+      python: "3.6"
       env: ATOM_CHANNEL=beta
 
 ### Generic setup follows ###
