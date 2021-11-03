@@ -20,7 +20,7 @@ module.exports = {
       You can use `$PROJECT` or `$PROJECT_NAME` substitution for project-specific
       paths.\n
       For example:
-      `~/.venv/$PROJECT_NAME/bin/python, $PROJECT/venv/bin/python, /usr/bin/pytho3, python`
+      `~/.venv/$PROJECT_NAME/bin/python, $PROJECT/venv/bin/python, /usr/bin/python3, python`
       '''
       order: 1
     }
