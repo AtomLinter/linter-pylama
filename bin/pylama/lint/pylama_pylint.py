@@ -4,6 +4,7 @@ from os import path as op, environ
 
 from astroid import MANAGER
 from pylama.lint import Linter as BaseLinter
+from pylint.__pkginfo__ import numversion
 from pylint.lint import Run
 from pylint.reporters import BaseReporter
 
@@ -17,7 +18,6 @@ logger = logging.getLogger('pylama')
 
 
 class Linter(BaseLinter):
-
     """Check code with Pylint."""
 
     @staticmethod
@@ -54,33 +54,32 @@ class Linter(BaseLinter):
 
         reporter = Reporter()
 
-        Run([path] + params.to_attrs(), reporter=reporter, exit=False)
+        kwargs = {
+            (numversion[0] == 1 and 'exit' or 'do_exit'): False
+        }
+
+        Run([path] + params.to_attrs(), reporter=reporter, **kwargs)
 
         return reporter.errors
 
 
 class _Params(object):
-
     """Store pylint params."""
 
     def __init__(self, select=None, ignore=None, params=None):
 
-        params = dict(params.items())
-        rcfile = params.get('rcfile', LAMA_RCFILE)
-        enable = params.get('enable', None)
-        disable = params.get('disable', None)
+        params = dict(params)
 
         if op.exists(HOME_RCFILE):
-            rcfile = HOME_RCFILE
+            params['rcfile'] = HOME_RCFILE
 
         if select:
-            enable = select | set(enable.split(",") if enable else [])
+            enable = params.get('enable', None)
+            params['enable'] = select | set(enable.split(",") if enable else [])
 
         if ignore:
-            disable = ignore | set(disable.split(",") if disable else [])
-
-        params.update(dict(
-            rcfile=rcfile, enable=enable, disable=disable))
+            disable = params.get('disable', None)
+            params['disable'] = ignore | set(disable.split(",") if disable else [])
 
         self.params = dict(
             (name.replace('_', '-'), self.prepare_value(value))
