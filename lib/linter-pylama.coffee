@@ -169,7 +169,7 @@ class LinterPylama
 
 
   initArgs: (curDir) =>
-    args = ['-F']
+    args = ['']
 
     if @configFileLoad[0] is 'U' # 'Use pylama config'
       configFilePath = findCached curDir, @configFileName
