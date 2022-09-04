@@ -3,11 +3,12 @@
 from __future__ import absolute_import, with_statement
 
 import sys
-from os import walk, path as op
+from os import path as op
+from os import walk
 
-from .config import parse_options, CURDIR, setup_logger
-from .core import LOGGER, run
 from .async import check_async
+from .config import CURDIR, parse_options, setup_logger
+from .core import LOGGER, run
 
 
 def check_path(options, rootdir=None, candidates=None, code=None):
@@ -34,9 +35,6 @@ def check_path(options, rootdir=None, candidates=None, code=None):
 
     paths = []
     for path in candidates:
-
-        if not options.force and not any(l.allow(path) for _, l in options.linters):
-            continue
 
         if not op.exists(path):
             continue

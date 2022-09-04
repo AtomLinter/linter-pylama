@@ -1,10 +1,9 @@
 """Parse arguments from command line and configuration files."""
 import fnmatch
-import os
-import sys
-import re
-
 import logging
+import os
+import re
+import sys
 from argparse import ArgumentParser
 
 from . import __version__
@@ -140,10 +139,6 @@ PARSER.add_argument(
         DEFAULT_CONFIG_FILE))
 
 PARSER.add_argument(
-    "--force", "-F", action='store_true', default=_Default(False),
-    help="Force code checking (if linter doesn't allow)")
-
-PARSER.add_argument(
     "--abspath", "-a", action='store_true', default=_Default(False),
     help="Use absolute paths in output.")
 
@@ -151,7 +146,7 @@ PARSER.add_argument(
 ACTIONS = dict((a.dest, a) for a in PARSER._actions)  # pylint: disable=protected-access
 
 
-def parse_options(args=None, config=True, rootdir=CURDIR, **overrides): # noqa
+def parse_options(args=None, config=True, rootdir=CURDIR, **overrides):  # noqa
     """ Parse options from command line and configuration files.
 
     :return argparse.Namespace:
